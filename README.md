@@ -3,5 +3,5 @@ Course project for ECE 9500 taught by Professor Tara Boroushaki FA 2026. Project
 
 ## Connecting to the Raspberry Pi 
 
-To ssh: `xrpi4@10.66.56.138`
+To ssh: `xrpi4@10.66.56.138`  
 When asked for password: `wvkbd`
