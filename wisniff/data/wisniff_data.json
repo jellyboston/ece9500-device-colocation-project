@@ -1,0 +1,326 @@
+{
+  "collection_duration_seconds": 180,
+  "total_devices_intercepted": 40,
+  "devices": [
+    {
+      "mac": "2A:50:A0:66:D7:D5",
+      "ecosystem": "apple",
+      "requested_network": "wildcard_sweep",
+      "rssi": -47,
+      "channel": 5,
+      "raw_ie_hex_prefix": "0000010482848B9632080C1218243048606C0301042D1A2D401BFF000000000000000000000000000000000000000000007F0B04004804000000C0010020FF"
+    },
+    {
+      "mac": "2A:50:A0:66:D7:D5",
+      "ecosystem": "apple",
+      "requested_network": "wildcard_sweep",
+      "rssi": -46,
+      "channel": 5,
+      "raw_ie_hex_prefix": "0000010482848B9632080C1218243048606C0301042D1A2D401BFF000000000000000000000000000000000000000000007F0B04004804000000C0010020FF"
+    },
+    {
+      "mac": "86:54:8C:4A:DE:35",
+      "ecosystem": "apple",
+      "requested_network": "wildcard_sweep",
+      "rssi": -44,
+      "channel": 6,
+      "raw_ie_hex_prefix": "0000010482848B9632080C1218243048606C0301052D1A2D401BFF000000000000000000000000000000000000000000007F0B04004804000000C0010020FF"
+    },
+    {
+      "mac": "86:54:8C:4A:DE:35",
+      "ecosystem": "apple",
+      "requested_network": "wildcard_sweep",
+      "rssi": -44,
+      "channel": 6,
+      "raw_ie_hex_prefix": "0000010482848B9632080C1218243048606C0301052D1A2D401BFF000000000000000000000000000000000000000000007F0B04004804000000C0010020FF"
+    },
+    {
+      "mac": "92:6F:22:76:B8:C3",
+      "ecosystem": "apple",
+      "requested_network": "wildcard_sweep",
+      "rssi": -39,
+      "channel": 6,
+      "raw_ie_hex_prefix": "0000010482848B9632080C1218243048606C0301072D1A2D401BFF000000000000000000000000000000000000000000007F0B04004804000000C0010020FF"
+    },
+    {
+      "mac": "92:6F:22:76:B8:C3",
+      "ecosystem": "apple",
+      "requested_network": "wildcard_sweep",
+      "rssi": -39,
+      "channel": 6,
+      "raw_ie_hex_prefix": "0000010482848B9632080C1218243048606C0301072D1A2D401BFF000000000000000000000000000000000000000000007F0B04004804000000C0010020FF"
+    },
+    {
+      "mac": "BE:77:83:BF:28:2A",
+      "ecosystem": "apple",
+      "requested_network": "wildcard_sweep",
+      "rssi": -41,
+      "channel": 6,
+      "raw_ie_hex_prefix": "0000010482848B9632080C1218243048606C0301062D1A2D401BFF000000000000000000000000000000000000000000007F0B04004804000000C0010020FF"
+    },
+    {
+      "mac": "BE:77:83:BF:28:2A",
+      "ecosystem": "apple",
+      "requested_network": "wildcard_sweep",
+      "rssi": -41,
+      "channel": 6,
+      "raw_ie_hex_prefix": "0000010482848B9632080C1218243048606C0301062D1A2D401BFF000000000000000000000000000000000000000000007F0B04004804000000C0010020FF"
+    },
+    {
+      "mac": "34:6F:24:CE:C7:19",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "wildcard_sweep",
+      "rssi": -90,
+      "channel": 13,
+      "raw_ie_hex_prefix": "0000010882848B960C12182432043048606C2D1A2C0902FF00000000000000000000000000000000000000000000460532000100007F090000080000000000"
+    },
+    {
+      "mac": "68:94:23:D6:BC:AB",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "wildcard_sweep",
+      "rssi": -72,
+      "channel": 8,
+      "raw_ie_hex_prefix": "0000010402040B1632080C1218243048606C2D1A1C1119FF00000000000000000000000000000000000000000000DD09001018020000040000DD1E00904C33"
+    },
+    {
+      "mac": "72:17:BC:14:12:CF",
+      "ecosystem": "apple",
+      "requested_network": "eduroam",
+      "rssi": -86,
+      "channel": 9,
+      "raw_ie_hex_prefix": "0007656475726F616D010482848B9632080C1218243048606C0301082D1A2D401BFF000000000000000000000000000000000000000000007F0B0000080400"
+    },
+    {
+      "mac": "72:17:BC:14:12:CF",
+      "ecosystem": "apple",
+      "requested_network": "eduroam",
+      "rssi": -83,
+      "channel": 9,
+      "raw_ie_hex_prefix": "0007656475726F616D010482848B9632080C1218243048606C0301092D1A2D401BFF000000000000000000000000000000000000000000007F0B0000080400"
+    },
+    {
+      "mac": "44:E5:17:C2:7A:22",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "wildcard_sweep",
+      "rssi": -35,
+      "channel": 11,
+      "raw_ie_hex_prefix": "0000010802040B160C12182432043048606C2D1A630917FF0000000000000000000000000000000000000000000000007856"
+    },
+    {
+      "mac": "44:E5:17:C2:7A:22",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "wildcard_sweep",
+      "rssi": -35,
+      "channel": 11,
+      "raw_ie_hex_prefix": "0000010802040B160C12182432043048606C2D1A630917FF0000000000000000000000000000000000000000000000007856"
+    },
+    {
+      "mac": "44:E5:17:C2:7A:22",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "wildcard_sweep",
+      "rssi": -44,
+      "channel": 11,
+      "raw_ie_hex_prefix": "0000010802040B160C12182432043048606C2D1A630917FF0000000000000000000000000000000000000000000000007856"
+    },
+    {
+      "mac": "58:6C:25:B1:B6:A1",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "wildcard_sweep",
+      "rssi": -75,
+      "channel": 12,
+      "raw_ie_hex_prefix": "0000010802040B160C12182432043048606C2D1A630917FF0000000000000000000000000000000000000000000000007856"
+    },
+    {
+      "mac": "58:6C:25:B1:B6:A1",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "wildcard_sweep",
+      "rssi": -77,
+      "channel": 12,
+      "raw_ie_hex_prefix": "0000010802040B160C12182432043048606C2D1A630917FF0000000000000000000000000000000000000000000000007856"
+    },
+    {
+      "mac": "58:6C:25:B1:B6:A1",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "wildcard_sweep",
+      "rssi": -77,
+      "channel": 13,
+      "raw_ie_hex_prefix": "0000010802040B160C12182432043048606C2D1A630917FF0000000000000000000000000000000000000000000000007856"
+    },
+    {
+      "mac": "4A:73:E3:08:D4:83",
+      "ecosystem": "unknown_client",
+      "requested_network": "wildcard_sweep",
+      "rssi": -61,
+      "channel": 6,
+      "raw_ie_hex_prefix": "0000010882848B960C12182432043048606C0301062D1A6F1003FFFF00000000000000000000000000000000000000000000000078"
+    },
+    {
+      "mac": "9E:6E:9D:C8:89:35",
+      "ecosystem": "unknown_client",
+      "requested_network": "wildcard_sweep",
+      "rssi": -68,
+      "channel": 6,
+      "raw_ie_hex_prefix": "0000010882848B960C12182432043048606C0301062D1A6F1003FFFF00000000000000003BA72B4324810000000000000000000078"
+    },
+    {
+      "mac": "BC:FF:4D:92:86:D7",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "RAKICH-DOWN1 1133",
+      "rssi": -93,
+      "channel": 9,
+      "raw_ie_hex_prefix": "001152414B4943482D444F574E31203131333301088B9682840C18306032046C122448007856AD"
+    },
+    {
+      "mac": "72:17:BC:14:12:CF",
+      "ecosystem": "apple",
+      "requested_network": "eduroam",
+      "rssi": -88,
+      "channel": 2,
+      "raw_ie_hex_prefix": "0007656475726F616D010482848B9632080C1218243048606C0301022D1A2D401BFF000000000000000000000000000000000000000000007F0B0000080400"
+    },
+    {
+      "mac": "CE:8F:76:15:C5:A5",
+      "ecosystem": "unknown_client",
+      "requested_network": "wildcard_sweep",
+      "rssi": -80,
+      "channel": 4,
+      "raw_ie_hex_prefix": "0000010402040B1632080C1218243048606C0301042D1AAD0917FFFF000000000000000000000000000000000000000100BF0C92F99133FAFF0C03FAFF0C03"
+    },
+    {
+      "mac": "CE:8F:76:15:C5:A5",
+      "ecosystem": "unknown_client",
+      "requested_network": "wildcard_sweep",
+      "rssi": -76,
+      "channel": 5,
+      "raw_ie_hex_prefix": "0000010402040B1632080C1218243048606C0301052D1AAD0917FFFF000000000000000000000000000000000000000100BF0C92F99133FAFF0C03FAFF0C03"
+    },
+    {
+      "mac": "06:76:55:F2:7E:DD",
+      "ecosystem": "unknown_client",
+      "requested_network": "wildcard_sweep",
+      "rssi": -82,
+      "channel": 5,
+      "raw_ie_hex_prefix": "0000010482848B9632080C1218243048606C0301052D1A2D401BFFFF0000000000000000000000000000000000000000007F080000080400000040FF1C2301"
+    },
+    {
+      "mac": "BC:FF:4D:92:86:D7",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "RAKICH-DOWN1 1133",
+      "rssi": -89,
+      "channel": 6,
+      "raw_ie_hex_prefix": "001152414B4943482D444F574E31203131333301088B9682840C18306032046C122448007856AD"
+    },
+    {
+      "mac": "54:78:C9:5B:26:88",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "YaleGuest",
+      "rssi": -79,
+      "channel": 4,
+      "raw_ie_hex_prefix": "000959616C654775657374010402040B1632080C1218243048606C0301042D1A21001FFF00000000000000000080010000000000000000000000DD09001018"
+    },
+    {
+      "mac": "54:78:C9:5B:26:88",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "wildcard_sweep",
+      "rssi": -77,
+      "channel": 4,
+      "raw_ie_hex_prefix": "0000010402040B1632080C1218243048606C0301042D1A21001FFF00000000000000000080010000000000000000000000DD090010180200100000007856AD"
+    },
+    {
+      "mac": "54:78:C9:5B:26:88",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "YaleGuest",
+      "rssi": -79,
+      "channel": 4,
+      "raw_ie_hex_prefix": "000959616C654775657374010402040B1632080C1218243048606C0301052D1A21001FFF00000000000000000080010000000000000000000000DD09001018"
+    },
+    {
+      "mac": "54:78:C9:5B:26:88",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "YaleGuest",
+      "rssi": -81,
+      "channel": 4,
+      "raw_ie_hex_prefix": "000959616C654775657374010402040B1632080C1218243048606C0301052D1A21001FFF00000000000000000080010000000000000000000000DD09001018"
+    },
+    {
+      "mac": "A8:43:A4:43:AB:E8",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "wildcard_sweep",
+      "rssi": -85,
+      "channel": 6,
+      "raw_ie_hex_prefix": "0000010882848B960C12182432043048606C2D1A2C0902FF00000000000000000000000000000000000000000000460532000100007F090000080000000000"
+    },
+    {
+      "mac": "A8:43:A4:43:AB:E8",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "wildcard_sweep",
+      "rssi": -84,
+      "channel": 6,
+      "raw_ie_hex_prefix": "0000010882848B960C12182432043048606C2D1A2C0902FF00000000000000000000000000000000000000000000460532000100007F090000080000000000"
+    },
+    {
+      "mac": "50:28:4A:0C:F6:1B",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "wildcard_sweep",
+      "rssi": -70,
+      "channel": 11,
+      "raw_ie_hex_prefix": "0000010802040B160C12182432043048606C2D1AE70917FFFF0000000000000000000000000000000000000000007F0A0400C880014000000000DD07506F9A"
+    },
+    {
+      "mac": "44:E5:17:C2:7A:22",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "wildcard_sweep",
+      "rssi": -33,
+      "channel": 11,
+      "raw_ie_hex_prefix": "0000010802040B160C12182432043048606C2D1A630917FF0000000000000000000000000000000000000000000000007856"
+    },
+    {
+      "mac": "44:E5:17:C2:7A:22",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "wildcard_sweep",
+      "rssi": -33,
+      "channel": 11,
+      "raw_ie_hex_prefix": "0000010802040B160C12182432043048606C2D1A630917FF0000000000000000000000000000000000000000000000007856"
+    },
+    {
+      "mac": "50:28:4A:0C:F6:1B",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "wildcard_sweep",
+      "rssi": -71,
+      "channel": 12,
+      "raw_ie_hex_prefix": "0000010802040B160C12182432043048606C2D1AE70917FFFF0000000000000000000000000000000000000000007F0A0400C880014000000000DD07506F9A"
+    },
+    {
+      "mac": "50:28:4A:0C:F6:1B",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "wildcard_sweep",
+      "rssi": -71,
+      "channel": 12,
+      "raw_ie_hex_prefix": "0000010802040B160C12182432043048606C2D1AE70917FFFF0000000000000000000000000000000000000000007F0A0400C880014000000000DD07506F9A"
+    },
+    {
+      "mac": "44:E5:17:C2:7A:22",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "wildcard_sweep",
+      "rssi": -40,
+      "channel": 12,
+      "raw_ie_hex_prefix": "0000010802040B160C12182432043048606C2D1A630917FF0000000000000000000000000000000000000000000000007856"
+    },
+    {
+      "mac": "58:6C:25:B1:B6:A1",
+      "ecosystem": "fixed_hardware",
+      "requested_network": "wildcard_sweep",
+      "rssi": -79,
+      "channel": 13,
+      "raw_ie_hex_prefix": "0000010802040B160C12182432043048606C2D1A630917FF0000000000000000000000000000000000000000000000007856"
+    },
+    {
+      "mac": "4A:2F:DA:4C:9B:4D",
+      "ecosystem": "apple",
+      "requested_network": "wildcard_sweep",
+      "rssi": -82,
+      "channel": 1,
+      "raw_ie_hex_prefix": "0000010482848B9632080C1218243048606C0301012D1A2D401BFFFF0000000000000000000000000000000000000000007F0B0400480400000040000020FF"
+    }
+  ]
+}
