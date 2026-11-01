@@ -8,7 +8,7 @@ When asked for password: `wvkbd`
 
 
 ## Setting up ESP32
-Install and setup Platformio following the [https://docs.platformio.org/en/stable/integration/ide/vscode.html](tutorial). Then open a project using the WiSniff folder. It may take ages to setup. This is normal. Just let it run it's course. Afterwards, all should be setup.  
+Install and setup Platformio following the [tutorial](https://docs.platformio.org/en/stable/integration/ide/vscode.html). Then open a project using the WiSniff folder. It may take ages to setup. This is normal. Just let it run it's course. Afterwards, all should be setup.  
 
 The important files to pay attention to are as follows:
 ```text
