@@ -83,4 +83,5 @@ void setup() {
 void loop() {
     // CSI runs asynchronously via hardware interrupts and the registered callback
     delay(1000); 
+    
 }
