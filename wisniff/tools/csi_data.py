@@ -49,4 +49,4 @@ def update(_):
 
 ani = FuncAnimation(fig, update, interval=200, cache_frame_data=False)
 plt.tight_layout(); plt.show()
-stop.set().
+stop.set()
