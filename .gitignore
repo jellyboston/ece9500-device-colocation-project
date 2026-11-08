@@ -13,3 +13,11 @@
 /wisniff/.vscode/c_cpp_properties.json
 /wisniff/.vscode/launch.json
 /wisniff/.vscode/ipch
+
+# Python analysis environments, generated results, and private captures.
+/analysis/.venv/
+/analysis/data/raw/
+/analysis/data/processed/
+/analysis/outputs/
+__pycache__/
+.pytest_cache/

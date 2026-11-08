@@ -21,3 +21,8 @@ Project Root
 ├── test/                 # System automation and framework test validation runs
 └── platformio.ini        # Project configuration profile (Boards, flags, and dependencies)
 ```
+
+
+## Report #1 offline analysis
+
+See [Report1_README.md](Report1_README.md) for Python setup, synthetic experiments, controlled-capture file ingestion, and evaluation. Developer notes are in [analysis/README.md](analysis/README.md).

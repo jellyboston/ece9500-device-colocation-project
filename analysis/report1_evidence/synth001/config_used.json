@@ -1,0 +1,52 @@
+{
+  "capture": {
+    "expected_channel": 6
+  },
+  "grouping": {
+    "max_devices_per_group": 2,
+    "min_directional_similarity": 0.0
+  },
+  "rssi": {
+    "max_packets_weight": 10,
+    "min_packets_per_device_pose": 3,
+    "min_poses_per_device": 3,
+    "min_shared_poses": 3,
+    "relative_bin_thresholds_db": [
+      -8,
+      -3,
+      3,
+      8
+    ]
+  },
+  "rwr": {
+    "max_iterations": 1000,
+    "restart_probability": 0.15,
+    "tolerance": 1e-10
+  },
+  "synthetic": {
+    "device_ids": [
+      "M1",
+      "D1",
+      "M2",
+      "D2"
+    ],
+    "group_center_x_m": [
+      2.0,
+      8.0
+    ],
+    "group_sizes": [
+      2,
+      2
+    ],
+    "group_spread_m": 0.2,
+    "missing_observation_probability": 0.0,
+    "noise_sd_db": 2.0,
+    "num_poses": 10,
+    "packets_per_device_pose": 10,
+    "path_loss_exponent": 2.0,
+    "pose_spacing_m": 1.0,
+    "reference_rssi_dbm": -40.0,
+    "shared_environment_sd_db": 1.0,
+    "tx_power_offset_sd_db": 4.0
+  }
+}

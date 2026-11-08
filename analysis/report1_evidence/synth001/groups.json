@@ -1,0 +1,45 @@
+{
+  "baseline_groups": [
+    [
+      "D1",
+      "M1"
+    ],
+    [
+      "D2",
+      "M2"
+    ]
+  ],
+  "groups": [
+    [
+      "D1",
+      "M1"
+    ],
+    [
+      "D2",
+      "M2"
+    ]
+  ],
+  "metadata": {
+    "candidate_clique_count": 2,
+    "candidate_lists": {
+      "D1": [
+        "M1"
+      ],
+      "D2": [
+        "M2"
+      ],
+      "M1": [
+        "D1"
+      ],
+      "M2": [
+        "D2"
+      ]
+    },
+    "max_devices_per_group": 2,
+    "min_directional_similarity": 0.0,
+    "overlap_conflict_count": 0,
+    "overlap_policy": "descending_size_then_summed_bidirectional_score_then_lexicographic; greedy_disjoint",
+    "oversized_clique_count": 0
+  },
+  "trial_id": "synth001"
+}

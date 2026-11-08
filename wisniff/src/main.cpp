@@ -8,6 +8,17 @@
  // 0 = TX (pinger), 1 = RX (CSI capture)
 #define ROLE 1
 
+/*
+TODO
+GOAL: Try and mimic positionality with the robot 
+- Program the ESP32's built in LEDs to Flash at an some sort of interval.
+- Have it flash 3 times. When it flashes three times, this serves as a visual
+- cue to move to the next position and collect again.
+- The logic should output a blank new line in the output csi__dev
+
+Also
+- move at a consistent speed
+*/
 
 #define ROLE_TX 0
 #define ROLE_RX 1

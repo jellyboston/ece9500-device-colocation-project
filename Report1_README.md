@@ -2,7 +2,7 @@
 
 **Project:** Device Constellations — RSSI-only, GraphTrack-inspired colocation  
 **Audience:** Teammates who want to run experiments without editing the algorithm.  
-**Status:** The commands below are the **planned interface to implement**; they will work after the code described in [`ECE9500_Report1_Low_Level_Spec_v2.md`](ECE9500_Report1_Low_Level_Spec_v2.md) is added to the repository. The original `wisniff/` firmware is not itself the Python analysis package.
+**Status:** The offline commands below are implemented in `analysis/`. They cover synthetic experiments, strict capture-file ingestion, inference, evaluation, and exploratory summaries. Firmware, pose-event acquisition, and the existing serial logger are unchanged. See [`analysis/README.md`](analysis/README.md) for developer notes and [`analysis/report1_evidence/`](analysis/report1_evidence/) for software evidence.
 
 ## 1. Open the project in VS Code (one-time setup)
 
@@ -12,14 +12,22 @@
 
 ```bash
 cd analysis
-python3 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate             # macOS / Linux
 # Windows PowerShell: .venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 python -m pytest -q
 ```
 
-Select the interpreter `analysis/.venv` in VS Code with **Python: Select Interpreter**. If `python3` isn't available, use your installed Python 3.11+ executable. If `analysis/` or `colocation/cli.py` does not yet exist, the coding agent still needs to implement the specification—**these commands are not built into Python or the current GitHub codebase**.
+Select the interpreter `analysis/.venv` in VS Code with **Python: Select Interpreter**. Use Python **3.11** for the pinned environment; the complete workflow was validated with 3.11.6. If your executable has a different name, check its version before creating the environment. An unqualified `python3` may select Python 3.13, which is unsuitable for the pinned NumPy 1.26.4 environment. Keep the terminal in `analysis/` so Python can find the local `colocation` package.
+
+To reproduce the complete CLI walkthrough, acceptance scenarios, and tracked report figures with the activated environment:
+
+```bash
+python run_report1.py
+```
+
+The script uses seed 9500 and writes [`analysis/report1_evidence/acceptance_summary.json`](analysis/report1_evidence/acceptance_summary.json), plus the anonymized evidence files described in [`analysis/report1_evidence/README.md`](analysis/report1_evidence/README.md). Its capture test uses invented serial/event samples; it does not run hardware.
 
 ## 2. How to read a command
 
@@ -89,6 +97,10 @@ python -m colocation.cli infer \
 
 Look at `outputs/synth001/groups.json`, `device_similarity.csv`, `similarity_heatmap.png`, and `device_similarity_graph.png`. These are **predictions**, not labels.
 
+`groups.json` is an object containing `trial_id`, sorted predicted `groups`, `baseline_groups`, and diagnostic `metadata`. Every observed or manifest-listed device appears in exactly one group. The Pearson baseline uses mutual top-1 matching, including when graph inference uses `K=3`.
+
+Inference also writes `config_used.json`, `provenance.json`, `observations_summary.json`, `rssi_by_pose.png`, and `rssistate_graph.png`. Synthetic generation records the seed and configuration in sidecars; `truth.json` remains an evaluation-only input. An adjacent `devices.json` is loaded automatically; use `infer --devices path/to/devices.json` to select a manifest explicitly.
+
 ### A3. Score the predictions
 
 ```bash
@@ -98,7 +110,9 @@ python -m colocation.cli evaluate \
   --out outputs/synth001/metrics.json
 ```
 
-Read `pairwise_precision`, `pairwise_recall`, `pairwise_f1`, and `count_absolute_error` (the exact output keys must be documented in the implementation). If the predicted groups don't match truth, keep the original outputs and investigate the settings rather than changing raw measurements until they agree.
+Read `pairwise_precision`, `pairwise_recall`, `pairwise_f1`, and `count_absolute_error`. If the predicted groups don't match truth, keep the original outputs and investigate the settings rather than changing raw measurements until they agree.
+
+Metrics also include predicted/true group counts and true-positive, false-positive, and false-negative device-pair counts. Evaluation stores baseline metrics under `pearson_baseline`, plus `graph_minus_baseline_pairwise_f1` and the Boolean `graph_improved_pairwise_f1`. Identical singleton-only partitions receive precision, recall, and F1 of 1; an empty predicted-pair set receives precision 0 when truth contains pairs. A `K=3` graph can emit triples while the specified baseline can emit only pairs, so their score difference is not an equal-capacity algorithm comparison. See [`analysis/README.md`](analysis/README.md) for the complete convention.
 
 ### A4. Change the synthetic experiment
 
@@ -117,6 +131,8 @@ Edit `analysis/config/report1.json`, ideally by **copying it** (e.g. `config/syn
 | `synthetic.missing_observation_probability` | `0.0` | Higher value drops packet samples, simulating incomplete captures. |
 | `synthetic.path_loss_exponent` | `2.0` | Changes how quickly simulated RSSI falls with distance; **toy model, not calibrated physics**. |
 | `synthetic.group_spread_m` | `0.2` | Larger values spread devices farther apart inside each true group. |
+| `synthetic.reference_rssi_dbm` | `-40.0` | Toy reference RSSI at 1 m, before persistent power offsets and noise. |
+| `synthetic.shared_environment_sd_db` | `1.0` | Standard deviation of a Gaussian effect shared by each true group's devices at a pose; this is a synthetic assumption. |
 | `rssi.relative_bin_thresholds_db` | `[-8,-3,3,8]` | Moves the boundaries of the *relative-RSSI* RF states; **not absolute RSSI** and not verified distance cutoffs. |
 | `rssi.min_packets_per_device_pose` | `3` | Minimum number of packet samples required to use one device at one pose. |
 | `rssi.min_poses_per_device` | `3` | Devices with insufficient usable poses become low-coverage singletons. |
@@ -151,7 +167,7 @@ This old file has 40 observation records and 18 unique MAC strings, but **no syn
 
 ```bash
 python -m colocation.cli ingest-csi \
-  --input ../wisniff/tools/csi_COM6_1794086754.csv \
+  --input ../wisniff/tools/csi_COM6_1794086754_useful.csv \
   --trial-id singlelink001 --receiver-id RX1 --device-id T1 \
   --out data/processed/singlelink001.jsonl
 ```
@@ -161,6 +177,24 @@ python -m colocation.cli ingest-csi \
 ## 6. Workflow C — Real controlled movement capture (when available)
 
 This is the pathway for testing real position-indexed RSSI. It is **not** a requirement to have the robot; manually marked receiver positions are sufficient for a staged test.
+
+The file adapter is implemented and can be tested without hardware. The existing firmware does not yet emit these pose markers, and its logger does not save them; producing a physical capture requires that separate acquisition work. To exercise ingestion now with explicitly synthetic fixtures:
+
+```bash
+python -m colocation.cli ingest-capture \
+  --input tests/fixtures/capture_samples.csv \
+  --events tests/fixtures/pose_events.csv \
+  --poses tests/fixtures/poses.csv \
+  --format csi-legacy --trial-id fixture001 --receiver-id RX1 \
+  --single-known-transmitter --device-id T1 \
+  --config config/report1.json --out data/processed/fixture001
+
+python -m colocation.cli infer \
+  --input data/processed/fixture001/observations.jsonl \
+  --config config/report1.json --out outputs/fixture001
+```
+
+These headerless CSI fixtures contain one labeled transmitter and three stationary pose windows. Ingestion accepts **9** stationary samples and excludes **6** movement/settling/gap samples. Inference returns the single transmitter as a singleton. These are software tests, not measured RF evidence.
 
 ### C1. Capture samples plus explicit pose markers
 
@@ -216,6 +250,8 @@ python -m colocation.cli ingest-capture \
 ```
 
 Inspect `data/processed/capture001/ingest_report.json` before running inference. It should tell you how many samples were accepted, excluded during movement/settling, or rejected due to identity/clock/pose errors. It also writes the canonical `observations.jsonl` and position/device manifests.
+
+Samples and pose events must come from **the same ESP32 recording**. The adapter rejects decreasing uptime, invalid event ordering, overlaps, missing positions, and inconsistent receiver metadata. Matching uptime values alone cannot prove that independently selected files share a recording; that provenance remains the experimenter's responsibility. Events must be stored in strictly increasing `event_index` order; equal timestamps are permitted when event order is explicit.
 
 **Important: one TX yields one device, not a colocation test.** You may plot its RSSI spatial trajectory; running `infer` should return a singleton/insufficient-grouping-evidence diagnostic, not pretend it has discovered a person grouping.
 

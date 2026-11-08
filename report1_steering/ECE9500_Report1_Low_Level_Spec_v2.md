@@ -3,8 +3,10 @@
 **Project:** Device Constellations: Passive Wireless Sensing for Person-Level Crowd Estimation  
 **Repository:** [`jellyboston/ece9500-device-colocation-project`](https://github.com/jellyboston/ece9500-device-colocation-project)  
 **Target:** November 9, 2026, 11:59 p.m. Eastern  
-**Status:** implementation plan, not completed results  
+**Status:** reference for the implemented Report #1 offline Python package; physical RF validation remains separate  
 **Revision (v2):** generalized inference contract, real-capture ingestion, and extended acceptance tests. The companion [`Report1_README.md`](Report1_README.md) is the teammate-facing quick start.
+
+**Implementation decisions confirmed by the project team:** This deliverable covers offline software tasks 1–9. Firmware, the existing serial logger, and physical acquisition are outside this change. The illustrative generator adds configurable `synthetic.reference_rssi_dbm=-40.0` and `synthetic.shared_environment_sd_db=1.0`; the shared term is Gaussian, drawn once per group and pose. Sample and event CSVs retain the specified schemas; the experimenter must supply both from the same ESP32 recording. Pose-event rows must already be in strictly increasing `event_index` order; shuffled rows are rejected rather than sorted. Validation detects ordering/reset/window errors, but coincident uptimes cannot independently prove recording identity. See [`analysis/README.md`](analysis/README.md) for implemented behavior and [`analysis/report1_evidence/`](analysis/report1_evidence/) for reproducible software evidence.
 
 ## 0. Instructions for a developer or coding agent
 
@@ -109,7 +111,7 @@ Add `.gitignore` patterns for `analysis/.venv/`, `analysis/data/processed/`, `an
 
 ```bash
 cd analysis
-python3 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate                # macOS/Linux
 # Windows PowerShell: .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -118,6 +120,8 @@ python -m pytest -q
 ```
 
 Put these packages in `analysis/requirements.txt` (pin exact versions after a working install):
+
+The implemented pinned environment was validated with **Python 3.11.6**. Select a Python 3.11 executable explicitly; an unqualified `python3` can resolve to Python 3.13, which is unsuitable for the pinned NumPy 1.26.4 dependency.
 
 ```text
 numpy
@@ -278,7 +282,7 @@ There is **no network or REST API** in Report #1. “API” means importable fun
 | `baseline.py` | `pearson_similarity(pose_rssi,min_shared_poses=3)` | Scores from same pose IDs; guard zero-variance arrays and missing observations. |
 | `evaluate.py` | `score_groups(predictions,truth) -> dict` | Pairwise precision, recall, F1, and count absolute error. |
 
-**All proposed commands below must be implemented**; none are currently supplied by the existing repository. Commands are run from `analysis/`. They must accept arbitrary device IDs, counts, group sizes, and input ordering through canonical JSONL/config—not special-case `M1`, `D1`, `M2`, or `D2`.
+**The commands below are implemented by the offline package.** Commands are run from `analysis/`. They accept arbitrary device IDs, counts, group sizes, and input ordering through canonical JSONL/config—not special-case `M1`, `D1`, `M2`, or `D2`.
 
 Required CLI commands (execute from `analysis/` after installation):
 
@@ -287,7 +291,7 @@ python -m colocation.cli synthesize --config config/report1.json --seed 9500 --o
 python -m colocation.cli infer --input data/processed/synth001/observations.jsonl --config config/report1.json --out outputs/synth001
 python -m colocation.cli evaluate --predictions outputs/synth001/groups.json --truth data/processed/synth001/truth.json --out outputs/synth001/metrics.json
 python -m colocation.cli summarize-wisniff --input ../wisniff/data/wisniff_data.json --out outputs/wisniff
-python -m colocation.cli ingest-csi --input ../wisniff/tools/csi_COM6_1794086754.csv --trial-id singlelink001 --receiver-id RX1 --device-id T1 --out data/processed/singlelink001.jsonl
+python -m colocation.cli ingest-csi --input ../wisniff/tools/csi_COM6_1794086754_useful.csv --trial-id singlelink001 --receiver-id RX1 --device-id T1 --out data/processed/singlelink001.jsonl
 python -m colocation.cli ingest-capture --input data/raw/capture001.csv --events data/raw/pose_events001.csv --poses data/raw/poses001.csv --format csi-legacy --trial-id capture001 --receiver-id RX1 --single-known-transmitter --device-id T1 --config config/report1.json --out data/processed/capture001
 python -m colocation.cli infer --input data/processed/capture001/observations.jsonl --config config/report1.json --out outputs/capture001
 python -m pytest -q
@@ -315,7 +319,9 @@ python -m colocation.cli ingest-capture --input data/raw/multi_tx.csv --events d
     "pose_spacing_m": 1.0,
     "group_center_x_m": [2.0, 8.0],
     "group_spread_m": 0.2,
+    "reference_rssi_dbm": -40.0,
     "tx_power_offset_sd_db": 4.0,
+    "shared_environment_sd_db": 1.0,
     "noise_sd_db": 2.0,
     "missing_observation_probability": 0.0,
     "path_loss_exponent": 2.0
@@ -335,7 +341,7 @@ python -m colocation.cli ingest-capture --input data/raw/multi_tx.csv --events d
 
 Validate configuration before running: `group_sizes` nonempty positive integers; `device_ids` unique and length equal to `sum(group_sizes)` (or automatically generate generic IDs if **omitted**); `group_center_x_m` length equal to group count; `num_poses≥3`; RSSI bin thresholds strictly increasing; `2≤K`; `0≤missing_probability<1`; positive packet and quality counts; numeric thresholds finite. `Truth` is generated only by `synthesize` and is never required by `infer`.
 
-Commands must exit nonzero with a clear message for bad files or invalid schemas. **No-pose ambient WiSniff or legacy CSI without events must be rejected by spatial `infer`, not auto-labeled.** Write JSON summaries and PNGs with named axes and units. Emit a `config_used.json` and random seed for synthetic runs; real runs record provenance and capture quality, not a fake seed. Paths above are **proposed commands** to implement, not commands already present. See the companion `Report1_README.md` for plain-language flags and synthetic-vs-real walkthroughs.
+Commands exit nonzero with a clear message for bad files or invalid schemas. **No-pose ambient WiSniff or legacy CSI without events are rejected by spatial `infer`, not auto-labeled.** Outputs include JSON summaries and PNGs with named axes and units. Synthetic generation emits `config_used.json` and records `random_seed` in `provenance.json`; real runs record provenance and capture quality, not a fake seed. See the companion `Report1_README.md` for plain-language flags and synthetic-vs-real walkthroughs.
 
 ## 8. Core algorithms, step by step
 
@@ -348,13 +354,15 @@ The **default fixture** generates 8–10 receiver positions on a known 1-D path 
 A reasonable illustrative generator (not a calibrated propagation model):
 
 ```text
-rssi(d,p) = tx_offset[d]
+rssi(d,p) = reference_rssi_dbm + tx_offset[d]
             - 10 * path_loss_exponent * log10(max(distance(d,p),0.5)/1.0)
             + shared_environment_effect[group(d),p]
             + independent_noise[d,p,packet]
 ```
 
 Choose `path_loss_exponent=2`, `independent_noise ~ Normal(0,2 dB)`, and a **fixed seed**. Store geometric truth in the generator; the inference code must only read observations, not those coordinates or labels. Do not tweak individual values after inspecting the predictions; record any parameter changes in the config. Also generate a negative control with noisier/non-colocated devices. **Parameters are experimental controls**: more noise/missing observations generally make association harder; more poses/packets may make estimates more stable; wider group separation may improve separability; `group_sizes` changes the true number and size of groups (and should be paired with an appropriate `grouping.max_devices_per_group`, an upper-bound assumption rather than a truth oracle). Record all choices. Do not promise monotonic success: multipath and bins may change results in non-obvious ways.
+
+The implemented defaults use `reference_rssi_dbm=-40.0` at 1 m, persistent transmitter offsets drawn from `Normal(0, tx_power_offset_sd_db)`, and shared group/pose effects drawn from `Normal(0, shared_environment_sd_db)` with default SD 1 dB. Independent transmitter positions use uniform offsets within `±group_spread_m`. These are explicit toy-model choices approved for software testing. Configurations producing RSSI outside the canonical −120…0 dBm range fail clearly instead of silently clipping samples. Generated uptime windows are explicitly simulated, enabling source-equivalence tests without claiming measured timestamps.
 
 ### 8.2 Preprocess and encode RF states
 
@@ -394,6 +402,8 @@ Choose `path_loss_exponent=2`, `independent_noise ~ Normal(0,2 dB)`, and a **fix
 
 ## 9. Optional staged physical movement experiment (no robot)
 
+**Implementation scope:** The following is a future acquisition protocol. The offline adapter and its synthetic event fixtures are implemented; pose-event emission, LED cues, logger persistence, and a physical run are not part of tasks 1–9. Existing firmware and `csi_data.py` remain unchanged.
+
 **Verdict:** The proposed LED-cued experiment is **useful for creating position-indexed measurements**, with one modification: **write explicit event markers, not blank lines**. A blank line has no timestamp, stage, device ID, or reliable semantics; plotting/CSV libraries may discard it. The current receiver learns **only one transmitter**, so this first experiment tests one device's RSSI spatial trajectory and the collection protocol—not colocation grouping of four devices.
 
 ### Equipment and arrangement
@@ -415,7 +425,7 @@ INIT → CAPTURE(P01, 8s) → WARN(3 flashes) → MOVE(4s)
 - **SETTLE:** stop at the mark; wait ~2 seconds for vibration/body effects to settle. Emit `MOVE_END`/`SETTLE_START` and then `CAPTURE_START` for the next pose. If 4 seconds is insufficient, lengthen it or allow an operator keypress/acknowledgment; never mislabel moving packets as stationary because a timer expired.
 - **DONE:** print final packet/drop counts and close cleanly.
 
-**Serial event format:** retain existing `CSI,...` format; add comment lines like `# POSE_EVENT,P02,CAPTURE_START,18500` using the **same device `millis()`** clock. Update `csi_data.py` to write these lines to `pose_events.csv` or a single JSONL event stream with immediate flush; continue raw CSI CSV without blank separators. Use `flush()` at markers and at least periodically during samples; log malformed serial rows and dropped frames. The script's current `#` handling **prints but does not save** such lines, so this change is required. Never run a separate serial monitor alongside the logger.
+**Serial event format:** retain existing `CSI,...` format; add comment lines like `# POSE_EVENT,P02,CAPTURE_START,18500` using the **same device `millis()`** clock. For this optional hardware protocol, update `csi_data.py` to write these lines to `pose_events.csv` or a single JSONL event stream with immediate flush; continue raw CSI CSV without blank separators. Use `flush()` at markers and at least periodically during samples; log malformed serial rows and dropped frames. The current script's `#` handling **prints but does not save** such lines, so logger work is required before that hardware protocol can run. It is deferred from the offline deliverable. Never run a separate serial monitor alongside the logger.
 
 **Postprocessing:** `ingest-capture` uses `capture.py` (§6.1). Sort event rows in declared order, validate monotonic timestamps, build non-overlapping capture windows, and attach each packet to the unique `[start,end)` window on the **same ESP32 uptime clock**. Samples during WARN/MOVE/SETTLE are **excluded from inference-ready `observations.jsonl`** and counted in `ingest_report.json`; never silently retain a `pose_id=null` sample and let inference guess. Do not join against laptop wall clock or assume another ESP32 shares the same `millis()` origin. Detect resets/time wrap and split into separate trials only with explicit evidence; otherwise reject. The pose manifest represents **receiver**, not TX, positions.
 
@@ -481,6 +491,8 @@ analysis/outputs/capture001/
 **Report claims:** Distinguish (1) code demonstration using generated ground truth, (2) ambient RSSI exploratory statistics, and (3) one-link CSI/position recording as preliminary hardware work. Do not state that simulated groups validate the RF physics, that MAC count equals person count, that raw RSSI is a distance measurement, or that stationary single-link CSI proves device colocation.
 
 ## 11. Cookbook: implementation order
+
+This checklist preserves the original development sequence. Current software behavior and validation results are documented in `analysis/README.md` and `analysis/report1_evidence/`; task 10 remains outside the implemented offline scope.
 
 - [ ] **Task 1 — Branch + environment.** Open repo, create `report1-rssi-pipeline`, add `analysis/requirements.txt`, create venv, install dependencies, run a no-op pytest.
 - [ ] **Task 2 — Models + parsers.** Add typed data objects and schema checks. Implement WiSniff summary and legacy CSI adapter. Confirm unknown pose/time stays unknown.
