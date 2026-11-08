@@ -19,7 +19,7 @@ python -m pip install -r requirements.txt
 python -m pytest -q
 ```
 
-Select the interpreter `analysis/.venv` in VS Code with **Python: Select Interpreter**. Use Python **3.11** for the pinned environment; the complete workflow was validated with 3.11.6. If your executable has a different name, check its version before creating the environment. An unqualified `python3` may select Python 3.13, which is unsuitable for the pinned NumPy 1.26.4 environment. Keep the terminal in `analysis/` so Python can find the local `colocation` package.
+Select the interpreter `analysis/.venv` in VS Code with **Python: Select Interpreter**. Python **3.11** reproduces the original report environment. Python **3.13** is also supported through a conditional NumPy 2.2.6 pin; use `python3 -m venv .venv` when that is your installed version. Create a new environment on each machine. For Debian 13 on a Raspberry Pi, follow the [Pi setup instructions](analysis/README.md#raspberry-pi-4-debian-13-arm64-python-313). Keep the terminal in `analysis/` so Python can find the local `colocation` package.
 
 To reproduce the complete CLI walkthrough, acceptance scenarios, and tracked report figures with the activated environment:
 

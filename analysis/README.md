@@ -1,6 +1,6 @@
 # Report #1 offline analysis
 
-This package implements the RSSI-only software deliverable in the root [implementation spec](../ECE9500_Report1_Low_Level_Spec_v2.md). The [teammate guide](../Report1_README.md) describes the command flags and experiment settings. Use Python **3.11** for the pinned dependency environment; the full workflow was validated with Python 3.11.6.
+This package implements the RSSI-only software deliverable in the root [implementation spec](../ECE9500_Report1_Low_Level_Spec_v2.md). The [teammate guide](../Report1_README.md) describes the command flags and experiment settings. The original report environment uses Python **3.11**; Python **3.13** uses a separate NumPy pin for compatibility.
 
 ## Set up and run
 
@@ -18,7 +18,28 @@ python -m colocation.cli infer --input data/processed/synth001/observations.json
 python -m colocation.cli evaluate --predictions outputs/synth001/groups.json --truth data/processed/synth001/truth.json --out outputs/synth001/metrics.json
 ```
 
-Windows PowerShell activation: `.venv\Scripts\Activate.ps1`. On Windows, `py -3.11 -m venv .venv` selects Python 3.11. Dependencies are pinned in `requirements.txt`; an unqualified `python3` may select a different version, such as 3.13, which is unsuitable for pinned NumPy 1.26.4. Keep commands in `analysis/`; `python -m colocation.cli --help` and each subcommand's `--help` show the accepted flags. Generated outputs, local virtual environments, caches, and private raw captures are ignored by Git.
+Windows PowerShell activation: `.venv\Scripts\Activate.ps1`. On Windows, `py -3.11 -m venv .venv` selects Python 3.11. Dependencies are pinned in `requirements.txt`: Python 3.11/3.12 selects NumPy 1.26.4, while Python 3.13 selects NumPy 2.2.6. Keep commands in `analysis/`; `python -m colocation.cli --help` and each subcommand's `--help` show the accepted flags. Generated outputs, local virtual environments, caches, and private raw captures are ignored by Git.
+
+### Raspberry Pi 4: Debian 13, ARM64, Python 3.13
+
+Install the OS tools in the Pi's SSH terminal:
+
+```bash
+sudo apt update
+sudo apt install -y git python3-venv
+```
+
+Transfer the updated project source to the Pi, then run from its `analysis/` directory:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pytest -q
+```
+
+Create this environment on the Pi; do not copy a Mac `.venv`. Keep dependencies inside the virtual environment. The conditional NumPy requirement is selected automatically, so the system Python does not need to be replaced. All 207 tests passed locally under Python 3.13 with NumPy 2.2.6, and dependencies resolved to Linux ARM64 wheels. These are compatibility checks; run the tests above on the actual Pi to verify its environment. The original report evidence remains associated with its recorded Python/NumPy versions.
 
 To reproduce the full documented CLI workflow, generalization scenarios, and tracked figures:
 
