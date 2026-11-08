@@ -1,0 +1,28 @@
+{
+  "count_absolute_error": 0,
+  "device_count": 4,
+  "empty_pair_convention": "precision=1 only if both pair sets empty; recall=1 if truth pairs empty",
+  "false_negative_pairs": 0,
+  "false_positive_pairs": 0,
+  "graph_improved_pairwise_f1": false,
+  "graph_minus_baseline_pairwise_f1": 0.0,
+  "pairwise_f1": 1.0,
+  "pairwise_precision": 1.0,
+  "pairwise_recall": 1.0,
+  "pearson_baseline": {
+    "count_absolute_error": 0,
+    "device_count": 4,
+    "empty_pair_convention": "precision=1 only if both pair sets empty; recall=1 if truth pairs empty",
+    "false_negative_pairs": 0,
+    "false_positive_pairs": 0,
+    "pairwise_f1": 1.0,
+    "pairwise_precision": 1.0,
+    "pairwise_recall": 1.0,
+    "predicted_group_count": 2,
+    "true_group_count": 2,
+    "true_positive_pairs": 2
+  },
+  "predicted_group_count": 2,
+  "true_group_count": 2,
+  "true_positive_pairs": 2
+}

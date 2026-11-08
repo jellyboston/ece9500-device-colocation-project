@@ -1,0 +1,115 @@
+{
+  "baseline": {
+    "groups": [
+      [
+        "D1",
+        "M1"
+      ],
+      [
+        "D2",
+        "M2"
+      ]
+    ],
+    "max_devices_per_group": 2,
+    "method": "pearson"
+  },
+  "device_count": 4,
+  "eligible_device_count": 4,
+  "grouping": {
+    "candidate_clique_count": 2,
+    "candidate_lists": {
+      "D1": [
+        "M1"
+      ],
+      "D2": [
+        "M2"
+      ],
+      "M1": [
+        "D1"
+      ],
+      "M2": [
+        "D2"
+      ]
+    },
+    "max_devices_per_group": 2,
+    "min_directional_similarity": 0.0,
+    "overlap_conflict_count": 0,
+    "overlap_policy": "descending_size_then_summed_bidirectional_score_then_lexicographic; greedy_disjoint",
+    "oversized_clique_count": 0
+  },
+  "observed_device_count": 4,
+  "pose_ids": [
+    "P01",
+    "P02",
+    "P03",
+    "P04",
+    "P05",
+    "P06",
+    "P07",
+    "P08",
+    "P09",
+    "P10"
+  ],
+  "quality": {
+    "aggregate_cell_count": 40,
+    "dropped_weak_cell_count": 0,
+    "dropped_weak_packet_count": 0,
+    "low_coverage_devices": [],
+    "per_device": {
+      "D1": {
+        "eligible": true,
+        "packet_count": 100,
+        "retained_pose_count": 10
+      },
+      "D2": {
+        "eligible": true,
+        "packet_count": 100,
+        "retained_pose_count": 10
+      },
+      "M1": {
+        "eligible": true,
+        "packet_count": 100,
+        "retained_pose_count": 10
+      },
+      "M2": {
+        "eligible": true,
+        "packet_count": 100,
+        "retained_pose_count": 10
+      }
+    },
+    "per_pose_packet_counts": {
+      "P01": 40,
+      "P02": 40,
+      "P03": 40,
+      "P04": 40,
+      "P05": 40,
+      "P06": 40,
+      "P07": 40,
+      "P08": 40,
+      "P09": 40,
+      "P10": 40
+    },
+    "retained_cell_count": 40,
+    "total_rows": 400,
+    "warnings": []
+  },
+  "receiver_ids": [
+    "RX1"
+  ],
+  "rwr_diagnostics": {
+    "isolated_devices": [],
+    "iterations_by_device": {
+      "D1": 146,
+      "D2": 146,
+      "M1": 146,
+      "M2": 146
+    },
+    "stationary_mass": {
+      "D1": 0.9999999999999999,
+      "D2": 1.0,
+      "M1": 0.9999999999999999,
+      "M2": 1.0
+    }
+  },
+  "trial_id": "synth001"
+}

@@ -1,0 +1,1505 @@
+{
+  "description": "Reproducible software acceptance evidence, not measured RF colocation validation",
+  "limitations": [
+    "Generated ground truth tests software behavior; it does not establish that real colocated devices have matching RF fingerprints.",
+    "The Pearson comparator always uses mutual top-1 (maximum group size 2); the graph uses configurable K. Triple-case accuracy differences also reflect that capacity difference.",
+    "The 12 dB noise control is prespecified and unchanged after observing predictions; noise need not reduce accuracy at every seed.",
+    "Low-coverage and zero-sample manifest devices are retained as singletons; correct coverage handling can reduce accuracy against known synthetic truth.",
+    "WiSniff outputs are aggregate exploration of one ambient scan without pose, time, or ownership labels; observed MAC count is not person count.",
+    "capture001 uses a synthetic single-transmitter serial/event fixture; it tests joining and singleton diagnostics, not hardware performance or multi-device grouping.",
+    "Real sample and event files must be supplied from the same ESP32 recording run. Integer uptime alone cannot detect every accidental mix-up between recordings."
+  ],
+  "packages": {
+    "matplotlib": "3.10.0",
+    "networkx": "3.5",
+    "numpy": "1.26.4",
+    "pandas": "2.2.3",
+    "pyserial": "3.5",
+    "pytest": "8.4.2"
+  },
+  "python_version": "3.11.6",
+  "scenarios": [
+    {
+      "config": {
+        "capture": {
+          "expected_channel": 6
+        },
+        "grouping": {
+          "max_devices_per_group": 2,
+          "min_directional_similarity": 0.0
+        },
+        "rssi": {
+          "max_packets_weight": 10,
+          "min_packets_per_device_pose": 3,
+          "min_poses_per_device": 3,
+          "min_shared_poses": 3,
+          "relative_bin_thresholds_db": [
+            -8,
+            -3,
+            3,
+            8
+          ]
+        },
+        "rwr": {
+          "max_iterations": 1000,
+          "restart_probability": 0.15,
+          "tolerance": 1e-10
+        },
+        "synthetic": {
+          "device_ids": [
+            "M1",
+            "D1",
+            "M2",
+            "D2"
+          ],
+          "group_center_x_m": [
+            2.0,
+            8.0
+          ],
+          "group_sizes": [
+            2,
+            2
+          ],
+          "group_spread_m": 0.2,
+          "missing_observation_probability": 0.0,
+          "noise_sd_db": 2.0,
+          "num_poses": 10,
+          "packets_per_device_pose": 10,
+          "path_loss_exponent": 2.0,
+          "pose_spacing_m": 1.0,
+          "reference_rssi_dbm": -40.0,
+          "shared_environment_sd_db": 1.0,
+          "tx_power_offset_sd_db": 4.0
+        }
+      },
+      "deterministic_under_row_and_manifest_reordering": true,
+      "graph_improved_pairwise_f1": false,
+      "graph_minus_baseline_pairwise_f1": 0.0,
+      "manifest_device_count": 4,
+      "manifest_pose_count": 10,
+      "observation_transformations": {},
+      "observations_count": 400,
+      "observations_summary": {
+        "baseline": {
+          "groups": [
+            [
+              "D1",
+              "M1"
+            ],
+            [
+              "D2",
+              "M2"
+            ]
+          ],
+          "max_devices_per_group": 2,
+          "method": "pearson"
+        },
+        "device_count": 4,
+        "eligible_device_count": 4,
+        "grouping": {
+          "candidate_clique_count": 2,
+          "candidate_lists": {
+            "D1": [
+              "M1"
+            ],
+            "D2": [
+              "M2"
+            ],
+            "M1": [
+              "D1"
+            ],
+            "M2": [
+              "D2"
+            ]
+          },
+          "max_devices_per_group": 2,
+          "min_directional_similarity": 0.0,
+          "overlap_conflict_count": 0,
+          "overlap_policy": "descending_size_then_summed_bidirectional_score_then_lexicographic; greedy_disjoint",
+          "oversized_clique_count": 0
+        },
+        "observed_device_count": 4,
+        "pose_ids": [
+          "P01",
+          "P02",
+          "P03",
+          "P04",
+          "P05",
+          "P06",
+          "P07",
+          "P08",
+          "P09",
+          "P10"
+        ],
+        "quality": {
+          "aggregate_cell_count": 40,
+          "dropped_weak_cell_count": 0,
+          "dropped_weak_packet_count": 0,
+          "low_coverage_devices": [],
+          "per_device": {
+            "D1": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "D2": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "M1": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "M2": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            }
+          },
+          "per_pose_packet_counts": {
+            "P01": 40,
+            "P02": 40,
+            "P03": 40,
+            "P04": 40,
+            "P05": 40,
+            "P06": 40,
+            "P07": 40,
+            "P08": 40,
+            "P09": 40,
+            "P10": 40
+          },
+          "retained_cell_count": 40,
+          "total_rows": 400,
+          "warnings": []
+        },
+        "receiver_ids": [
+          "RX1"
+        ],
+        "rwr_diagnostics": {
+          "isolated_devices": [],
+          "iterations_by_device": {
+            "D1": 146,
+            "D2": 146,
+            "M1": 146,
+            "M2": 146
+          },
+          "stationary_mass": {
+            "D1": 0.9999999999999999,
+            "D2": 1.0,
+            "M1": 0.9999999999999999,
+            "M2": 1.0
+          }
+        },
+        "trial_id": "synth001"
+      },
+      "pearson_baseline_groups": [
+        [
+          "D1",
+          "M1"
+        ],
+        [
+          "D2",
+          "M2"
+        ]
+      ],
+      "pearson_baseline_metrics": {
+        "count_absolute_error": 0,
+        "device_count": 4,
+        "empty_pair_convention": "precision=1 only if both pair sets empty; recall=1 if truth pairs empty",
+        "false_negative_pairs": 0,
+        "false_positive_pairs": 0,
+        "pairwise_f1": 1.0,
+        "pairwise_precision": 1.0,
+        "pairwise_recall": 1.0,
+        "predicted_group_count": 2,
+        "true_group_count": 2,
+        "true_positive_pairs": 2
+      },
+      "predicted_groups": [
+        [
+          "D1",
+          "M1"
+        ],
+        [
+          "D2",
+          "M2"
+        ]
+      ],
+      "rwr_metrics": {
+        "count_absolute_error": 0,
+        "device_count": 4,
+        "empty_pair_convention": "precision=1 only if both pair sets empty; recall=1 if truth pairs empty",
+        "false_negative_pairs": 0,
+        "false_positive_pairs": 0,
+        "pairwise_f1": 1.0,
+        "pairwise_precision": 1.0,
+        "pairwise_recall": 1.0,
+        "predicted_group_count": 2,
+        "true_group_count": 2,
+        "true_positive_pairs": 2
+      },
+      "scenario": "default_two_pairs",
+      "seed": 9500,
+      "source": "synthetic",
+      "valid_partition": true
+    },
+    {
+      "config": {
+        "capture": {
+          "expected_channel": 6
+        },
+        "grouping": {
+          "max_devices_per_group": 2,
+          "min_directional_similarity": 0.0
+        },
+        "rssi": {
+          "max_packets_weight": 10,
+          "min_packets_per_device_pose": 3,
+          "min_poses_per_device": 3,
+          "min_shared_poses": 3,
+          "relative_bin_thresholds_db": [
+            -8,
+            -3,
+            3,
+            8
+          ]
+        },
+        "rwr": {
+          "max_iterations": 1000,
+          "restart_probability": 0.15,
+          "tolerance": 1e-10
+        },
+        "synthetic": {
+          "device_ids": [
+            "zeta:phone",
+            "alpha%watch",
+            "device/9",
+            "\u03a9 laptop",
+            "left",
+            "unfamiliar"
+          ],
+          "group_center_x_m": [
+            1.0,
+            4.5,
+            8.0
+          ],
+          "group_sizes": [
+            2,
+            2,
+            2
+          ],
+          "group_spread_m": 0.2,
+          "missing_observation_probability": 0.0,
+          "noise_sd_db": 2.0,
+          "num_poses": 10,
+          "packets_per_device_pose": 10,
+          "path_loss_exponent": 2.0,
+          "pose_spacing_m": 1.0,
+          "reference_rssi_dbm": -40.0,
+          "shared_environment_sd_db": 1.0,
+          "tx_power_offset_sd_db": 4.0
+        }
+      },
+      "deterministic_under_row_and_manifest_reordering": true,
+      "graph_improved_pairwise_f1": false,
+      "graph_minus_baseline_pairwise_f1": 0.0,
+      "manifest_device_count": 6,
+      "manifest_pose_count": 10,
+      "observation_transformations": {},
+      "observations_count": 600,
+      "observations_summary": {
+        "baseline": {
+          "groups": [
+            [
+              "alpha%watch",
+              "zeta:phone"
+            ],
+            [
+              "device/9",
+              "\u03a9 laptop"
+            ],
+            [
+              "left",
+              "unfamiliar"
+            ]
+          ],
+          "max_devices_per_group": 2,
+          "method": "pearson"
+        },
+        "device_count": 6,
+        "eligible_device_count": 6,
+        "grouping": {
+          "candidate_clique_count": 3,
+          "candidate_lists": {
+            "alpha%watch": [
+              "zeta:phone"
+            ],
+            "device/9": [
+              "\u03a9 laptop"
+            ],
+            "left": [
+              "unfamiliar"
+            ],
+            "unfamiliar": [
+              "left"
+            ],
+            "zeta:phone": [
+              "alpha%watch"
+            ],
+            "\u03a9 laptop": [
+              "device/9"
+            ]
+          },
+          "max_devices_per_group": 2,
+          "min_directional_similarity": 0.0,
+          "overlap_conflict_count": 0,
+          "overlap_policy": "descending_size_then_summed_bidirectional_score_then_lexicographic; greedy_disjoint",
+          "oversized_clique_count": 0
+        },
+        "observed_device_count": 6,
+        "pose_ids": [
+          "P01",
+          "P02",
+          "P03",
+          "P04",
+          "P05",
+          "P06",
+          "P07",
+          "P08",
+          "P09",
+          "P10"
+        ],
+        "quality": {
+          "aggregate_cell_count": 60,
+          "dropped_weak_cell_count": 0,
+          "dropped_weak_packet_count": 0,
+          "low_coverage_devices": [],
+          "per_device": {
+            "alpha%watch": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "device/9": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "left": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "unfamiliar": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "zeta:phone": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "\u03a9 laptop": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            }
+          },
+          "per_pose_packet_counts": {
+            "P01": 60,
+            "P02": 60,
+            "P03": 60,
+            "P04": 60,
+            "P05": 60,
+            "P06": 60,
+            "P07": 60,
+            "P08": 60,
+            "P09": 60,
+            "P10": 60
+          },
+          "retained_cell_count": 60,
+          "total_rows": 600,
+          "warnings": []
+        },
+        "receiver_ids": [
+          "RX1"
+        ],
+        "rwr_diagnostics": {
+          "isolated_devices": [],
+          "iterations_by_device": {
+            "alpha%watch": 146,
+            "device/9": 146,
+            "left": 146,
+            "unfamiliar": 146,
+            "zeta:phone": 146,
+            "\u03a9 laptop": 146
+          },
+          "stationary_mass": {
+            "alpha%watch": 1.0,
+            "device/9": 1.0,
+            "left": 1.0,
+            "unfamiliar": 1.0,
+            "zeta:phone": 1.0,
+            "\u03a9 laptop": 0.9999999999999999
+          }
+        },
+        "trial_id": "synth001"
+      },
+      "pearson_baseline_groups": [
+        [
+          "alpha%watch",
+          "zeta:phone"
+        ],
+        [
+          "device/9",
+          "\u03a9 laptop"
+        ],
+        [
+          "left",
+          "unfamiliar"
+        ]
+      ],
+      "pearson_baseline_metrics": {
+        "count_absolute_error": 0,
+        "device_count": 6,
+        "empty_pair_convention": "precision=1 only if both pair sets empty; recall=1 if truth pairs empty",
+        "false_negative_pairs": 0,
+        "false_positive_pairs": 0,
+        "pairwise_f1": 1.0,
+        "pairwise_precision": 1.0,
+        "pairwise_recall": 1.0,
+        "predicted_group_count": 3,
+        "true_group_count": 3,
+        "true_positive_pairs": 3
+      },
+      "predicted_groups": [
+        [
+          "alpha%watch",
+          "zeta:phone"
+        ],
+        [
+          "device/9",
+          "\u03a9 laptop"
+        ],
+        [
+          "left",
+          "unfamiliar"
+        ]
+      ],
+      "rwr_metrics": {
+        "count_absolute_error": 0,
+        "device_count": 6,
+        "empty_pair_convention": "precision=1 only if both pair sets empty; recall=1 if truth pairs empty",
+        "false_negative_pairs": 0,
+        "false_positive_pairs": 0,
+        "pairwise_f1": 1.0,
+        "pairwise_precision": 1.0,
+        "pairwise_recall": 1.0,
+        "predicted_group_count": 3,
+        "true_group_count": 3,
+        "true_positive_pairs": 3
+      },
+      "scenario": "three_pairs_arbitrary_identifiers",
+      "seed": 9500,
+      "source": "synthetic",
+      "valid_partition": true
+    },
+    {
+      "config": {
+        "capture": {
+          "expected_channel": 6
+        },
+        "grouping": {
+          "max_devices_per_group": 2,
+          "min_directional_similarity": 0.05
+        },
+        "rssi": {
+          "max_packets_weight": 10,
+          "min_packets_per_device_pose": 3,
+          "min_poses_per_device": 3,
+          "min_shared_poses": 3,
+          "relative_bin_thresholds_db": [
+            -8,
+            -3,
+            3,
+            8
+          ]
+        },
+        "rwr": {
+          "max_iterations": 1000,
+          "restart_probability": 0.15,
+          "tolerance": 1e-10
+        },
+        "synthetic": {
+          "group_center_x_m": [
+            1.0,
+            4.5,
+            8.0
+          ],
+          "group_sizes": [
+            2,
+            2,
+            1
+          ],
+          "group_spread_m": 0.2,
+          "missing_observation_probability": 0.0,
+          "noise_sd_db": 2.0,
+          "num_poses": 10,
+          "packets_per_device_pose": 10,
+          "path_loss_exponent": 2.0,
+          "pose_spacing_m": 1.0,
+          "reference_rssi_dbm": -40.0,
+          "shared_environment_sd_db": 1.0,
+          "tx_power_offset_sd_db": 4.0
+        }
+      },
+      "deterministic_under_row_and_manifest_reordering": true,
+      "graph_improved_pairwise_f1": false,
+      "graph_minus_baseline_pairwise_f1": 0.0,
+      "manifest_device_count": 5,
+      "manifest_pose_count": 10,
+      "observation_transformations": {},
+      "observations_count": 500,
+      "observations_summary": {
+        "baseline": {
+          "groups": [
+            [
+              "D001",
+              "D002"
+            ],
+            [
+              "D003",
+              "D004"
+            ],
+            [
+              "D005"
+            ]
+          ],
+          "max_devices_per_group": 2,
+          "method": "pearson"
+        },
+        "device_count": 5,
+        "eligible_device_count": 5,
+        "grouping": {
+          "candidate_clique_count": 3,
+          "candidate_lists": {
+            "D001": [
+              "D002"
+            ],
+            "D002": [
+              "D001"
+            ],
+            "D003": [
+              "D004"
+            ],
+            "D004": [
+              "D003"
+            ],
+            "D005": [
+              "D003"
+            ]
+          },
+          "max_devices_per_group": 2,
+          "min_directional_similarity": 0.05,
+          "overlap_conflict_count": 0,
+          "overlap_policy": "descending_size_then_summed_bidirectional_score_then_lexicographic; greedy_disjoint",
+          "oversized_clique_count": 0
+        },
+        "observed_device_count": 5,
+        "pose_ids": [
+          "P01",
+          "P02",
+          "P03",
+          "P04",
+          "P05",
+          "P06",
+          "P07",
+          "P08",
+          "P09",
+          "P10"
+        ],
+        "quality": {
+          "aggregate_cell_count": 50,
+          "dropped_weak_cell_count": 0,
+          "dropped_weak_packet_count": 0,
+          "low_coverage_devices": [],
+          "per_device": {
+            "D001": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "D002": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "D003": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "D004": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "D005": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            }
+          },
+          "per_pose_packet_counts": {
+            "P01": 50,
+            "P02": 50,
+            "P03": 50,
+            "P04": 50,
+            "P05": 50,
+            "P06": 50,
+            "P07": 50,
+            "P08": 50,
+            "P09": 50,
+            "P10": 50
+          },
+          "retained_cell_count": 50,
+          "total_rows": 500,
+          "warnings": []
+        },
+        "receiver_ids": [
+          "RX1"
+        ],
+        "rwr_diagnostics": {
+          "isolated_devices": [],
+          "iterations_by_device": {
+            "D001": 146,
+            "D002": 146,
+            "D003": 146,
+            "D004": 146,
+            "D005": 146
+          },
+          "stationary_mass": {
+            "D001": 0.9999999999999999,
+            "D002": 1.0,
+            "D003": 0.9999999999999998,
+            "D004": 1.0,
+            "D005": 1.0
+          }
+        },
+        "trial_id": "synth001"
+      },
+      "pearson_baseline_groups": [
+        [
+          "D001",
+          "D002"
+        ],
+        [
+          "D003",
+          "D004"
+        ],
+        [
+          "D005"
+        ]
+      ],
+      "pearson_baseline_metrics": {
+        "count_absolute_error": 0,
+        "device_count": 5,
+        "empty_pair_convention": "precision=1 only if both pair sets empty; recall=1 if truth pairs empty",
+        "false_negative_pairs": 0,
+        "false_positive_pairs": 0,
+        "pairwise_f1": 1.0,
+        "pairwise_precision": 1.0,
+        "pairwise_recall": 1.0,
+        "predicted_group_count": 3,
+        "true_group_count": 3,
+        "true_positive_pairs": 2
+      },
+      "predicted_groups": [
+        [
+          "D001",
+          "D002"
+        ],
+        [
+          "D003",
+          "D004"
+        ],
+        [
+          "D005"
+        ]
+      ],
+      "rwr_metrics": {
+        "count_absolute_error": 0,
+        "device_count": 5,
+        "empty_pair_convention": "precision=1 only if both pair sets empty; recall=1 if truth pairs empty",
+        "false_negative_pairs": 0,
+        "false_positive_pairs": 0,
+        "pairwise_f1": 1.0,
+        "pairwise_precision": 1.0,
+        "pairwise_recall": 1.0,
+        "predicted_group_count": 3,
+        "true_group_count": 3,
+        "true_positive_pairs": 2
+      },
+      "scenario": "two_pairs_and_singleton",
+      "seed": 9500,
+      "source": "synthetic",
+      "valid_partition": true
+    },
+    {
+      "config": {
+        "capture": {
+          "expected_channel": 6
+        },
+        "grouping": {
+          "max_devices_per_group": 3,
+          "min_directional_similarity": 0.0
+        },
+        "rssi": {
+          "max_packets_weight": 10,
+          "min_packets_per_device_pose": 3,
+          "min_poses_per_device": 3,
+          "min_shared_poses": 3,
+          "relative_bin_thresholds_db": [
+            -8,
+            -3,
+            3,
+            8
+          ]
+        },
+        "rwr": {
+          "max_iterations": 1000,
+          "restart_probability": 0.15,
+          "tolerance": 1e-10
+        },
+        "synthetic": {
+          "group_center_x_m": [
+            2.0,
+            8.0
+          ],
+          "group_sizes": [
+            3,
+            3
+          ],
+          "group_spread_m": 0.2,
+          "missing_observation_probability": 0.0,
+          "noise_sd_db": 2.0,
+          "num_poses": 10,
+          "packets_per_device_pose": 10,
+          "path_loss_exponent": 2.0,
+          "pose_spacing_m": 1.0,
+          "reference_rssi_dbm": -40.0,
+          "shared_environment_sd_db": 1.0,
+          "tx_power_offset_sd_db": 4.0
+        }
+      },
+      "deterministic_under_row_and_manifest_reordering": true,
+      "graph_improved_pairwise_f1": true,
+      "graph_minus_baseline_pairwise_f1": 0.5,
+      "manifest_device_count": 6,
+      "manifest_pose_count": 10,
+      "observation_transformations": {},
+      "observations_count": 600,
+      "observations_summary": {
+        "baseline": {
+          "groups": [
+            [
+              "D001",
+              "D003"
+            ],
+            [
+              "D002"
+            ],
+            [
+              "D004",
+              "D005"
+            ],
+            [
+              "D006"
+            ]
+          ],
+          "max_devices_per_group": 2,
+          "method": "pearson"
+        },
+        "device_count": 6,
+        "eligible_device_count": 6,
+        "grouping": {
+          "candidate_clique_count": 2,
+          "candidate_lists": {
+            "D001": [
+              "D002",
+              "D003"
+            ],
+            "D002": [
+              "D003",
+              "D001"
+            ],
+            "D003": [
+              "D002",
+              "D001"
+            ],
+            "D004": [
+              "D005",
+              "D006"
+            ],
+            "D005": [
+              "D006",
+              "D004"
+            ],
+            "D006": [
+              "D005",
+              "D004"
+            ]
+          },
+          "max_devices_per_group": 3,
+          "min_directional_similarity": 0.0,
+          "overlap_conflict_count": 0,
+          "overlap_policy": "descending_size_then_summed_bidirectional_score_then_lexicographic; greedy_disjoint",
+          "oversized_clique_count": 0
+        },
+        "observed_device_count": 6,
+        "pose_ids": [
+          "P01",
+          "P02",
+          "P03",
+          "P04",
+          "P05",
+          "P06",
+          "P07",
+          "P08",
+          "P09",
+          "P10"
+        ],
+        "quality": {
+          "aggregate_cell_count": 60,
+          "dropped_weak_cell_count": 0,
+          "dropped_weak_packet_count": 0,
+          "low_coverage_devices": [],
+          "per_device": {
+            "D001": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "D002": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "D003": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "D004": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "D005": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "D006": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            }
+          },
+          "per_pose_packet_counts": {
+            "P01": 60,
+            "P02": 60,
+            "P03": 60,
+            "P04": 60,
+            "P05": 60,
+            "P06": 60,
+            "P07": 60,
+            "P08": 60,
+            "P09": 60,
+            "P10": 60
+          },
+          "retained_cell_count": 60,
+          "total_rows": 600,
+          "warnings": []
+        },
+        "receiver_ids": [
+          "RX1"
+        ],
+        "rwr_diagnostics": {
+          "isolated_devices": [],
+          "iterations_by_device": {
+            "D001": 146,
+            "D002": 146,
+            "D003": 146,
+            "D004": 146,
+            "D005": 146,
+            "D006": 146
+          },
+          "stationary_mass": {
+            "D001": 1.0000000000000002,
+            "D002": 1.0,
+            "D003": 0.9999999999999999,
+            "D004": 1.0,
+            "D005": 0.9999999999999997,
+            "D006": 0.9999999999999999
+          }
+        },
+        "trial_id": "synth001"
+      },
+      "pearson_baseline_groups": [
+        [
+          "D001",
+          "D003"
+        ],
+        [
+          "D002"
+        ],
+        [
+          "D004",
+          "D005"
+        ],
+        [
+          "D006"
+        ]
+      ],
+      "pearson_baseline_metrics": {
+        "count_absolute_error": 2,
+        "device_count": 6,
+        "empty_pair_convention": "precision=1 only if both pair sets empty; recall=1 if truth pairs empty",
+        "false_negative_pairs": 4,
+        "false_positive_pairs": 0,
+        "pairwise_f1": 0.5,
+        "pairwise_precision": 1.0,
+        "pairwise_recall": 0.3333333333333333,
+        "predicted_group_count": 4,
+        "true_group_count": 2,
+        "true_positive_pairs": 2
+      },
+      "predicted_groups": [
+        [
+          "D001",
+          "D002",
+          "D003"
+        ],
+        [
+          "D004",
+          "D005",
+          "D006"
+        ]
+      ],
+      "rwr_metrics": {
+        "count_absolute_error": 0,
+        "device_count": 6,
+        "empty_pair_convention": "precision=1 only if both pair sets empty; recall=1 if truth pairs empty",
+        "false_negative_pairs": 0,
+        "false_positive_pairs": 0,
+        "pairwise_f1": 1.0,
+        "pairwise_precision": 1.0,
+        "pairwise_recall": 1.0,
+        "predicted_group_count": 2,
+        "true_group_count": 2,
+        "true_positive_pairs": 6
+      },
+      "scenario": "two_triples_k3",
+      "seed": 9500,
+      "source": "synthetic",
+      "valid_partition": true
+    },
+    {
+      "config": {
+        "capture": {
+          "expected_channel": 6
+        },
+        "grouping": {
+          "max_devices_per_group": 2,
+          "min_directional_similarity": 0.0
+        },
+        "rssi": {
+          "max_packets_weight": 10,
+          "min_packets_per_device_pose": 3,
+          "min_poses_per_device": 3,
+          "min_shared_poses": 3,
+          "relative_bin_thresholds_db": [
+            -8,
+            -3,
+            3,
+            8
+          ]
+        },
+        "rwr": {
+          "max_iterations": 1000,
+          "restart_probability": 0.15,
+          "tolerance": 1e-10
+        },
+        "synthetic": {
+          "device_ids": [
+            "M1",
+            "D1",
+            "M2",
+            "D2"
+          ],
+          "group_center_x_m": [
+            2.0,
+            8.0
+          ],
+          "group_sizes": [
+            2,
+            2
+          ],
+          "group_spread_m": 0.2,
+          "missing_observation_probability": 0.0,
+          "noise_sd_db": 2.0,
+          "num_poses": 10,
+          "packets_per_device_pose": 10,
+          "path_loss_exponent": 2.0,
+          "pose_spacing_m": 1.0,
+          "reference_rssi_dbm": -40.0,
+          "shared_environment_sd_db": 1.0,
+          "tx_power_offset_sd_db": 4.0
+        }
+      },
+      "deterministic_under_row_and_manifest_reordering": true,
+      "graph_improved_pairwise_f1": false,
+      "graph_minus_baseline_pairwise_f1": 0.0,
+      "manifest_device_count": 5,
+      "manifest_pose_count": 10,
+      "observation_transformations": {
+        "additional_zero_sample_manifest_devices": [
+          "silent-transmitter"
+        ],
+        "exclude_odd_sample_indices_by_device": [
+          "D2"
+        ],
+        "exclude_poses_by_device": {
+          "D1": [
+            "P03",
+            "P05"
+          ]
+        },
+        "retain_only_poses_by_device": {
+          "M1": [
+            "P01",
+            "P02"
+          ]
+        }
+      },
+      "observations_count": 250,
+      "observations_summary": {
+        "baseline": {
+          "groups": [
+            [
+              "D1"
+            ],
+            [
+              "D2",
+              "M2"
+            ],
+            [
+              "M1"
+            ],
+            [
+              "silent-transmitter"
+            ]
+          ],
+          "max_devices_per_group": 2,
+          "method": "pearson"
+        },
+        "device_count": 5,
+        "eligible_device_count": 3,
+        "grouping": {
+          "candidate_clique_count": 2,
+          "candidate_lists": {
+            "D1": [
+              "D2"
+            ],
+            "D2": [
+              "M2"
+            ],
+            "M2": [
+              "D2"
+            ]
+          },
+          "max_devices_per_group": 2,
+          "min_directional_similarity": 0.0,
+          "overlap_conflict_count": 0,
+          "overlap_policy": "descending_size_then_summed_bidirectional_score_then_lexicographic; greedy_disjoint",
+          "oversized_clique_count": 0
+        },
+        "observed_device_count": 4,
+        "pose_ids": [
+          "P01",
+          "P02",
+          "P03",
+          "P04",
+          "P05",
+          "P06",
+          "P07",
+          "P08",
+          "P09",
+          "P10"
+        ],
+        "quality": {
+          "aggregate_cell_count": 30,
+          "dropped_weak_cell_count": 0,
+          "dropped_weak_packet_count": 0,
+          "low_coverage_devices": [
+            "M1",
+            "silent-transmitter"
+          ],
+          "per_device": {
+            "D1": {
+              "eligible": true,
+              "packet_count": 80,
+              "retained_pose_count": 8
+            },
+            "D2": {
+              "eligible": true,
+              "packet_count": 50,
+              "retained_pose_count": 10
+            },
+            "M1": {
+              "eligible": false,
+              "packet_count": 20,
+              "retained_pose_count": 2
+            },
+            "M2": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "silent-transmitter": {
+              "eligible": false,
+              "packet_count": 0,
+              "retained_pose_count": 0
+            }
+          },
+          "per_pose_packet_counts": {
+            "P01": 35,
+            "P02": 35,
+            "P03": 15,
+            "P04": 25,
+            "P05": 15,
+            "P06": 25,
+            "P07": 25,
+            "P08": 25,
+            "P09": 25,
+            "P10": 25
+          },
+          "retained_cell_count": 30,
+          "total_rows": 250,
+          "warnings": [
+            "Low-coverage device M1: emitted as a singleton",
+            "Manifest device silent-transmitter has no samples: emitted as a singleton"
+          ]
+        },
+        "receiver_ids": [
+          "RX1"
+        ],
+        "rwr_diagnostics": {
+          "isolated_devices": [],
+          "iterations_by_device": {
+            "D1": 146,
+            "D2": 146,
+            "M2": 146
+          },
+          "stationary_mass": {
+            "D1": 0.9999999999999996,
+            "D2": 1.0,
+            "M2": 1.0
+          }
+        },
+        "trial_id": "synth001"
+      },
+      "pearson_baseline_groups": [
+        [
+          "D1"
+        ],
+        [
+          "D2",
+          "M2"
+        ],
+        [
+          "M1"
+        ],
+        [
+          "silent-transmitter"
+        ]
+      ],
+      "pearson_baseline_metrics": {
+        "count_absolute_error": 1,
+        "device_count": 5,
+        "empty_pair_convention": "precision=1 only if both pair sets empty; recall=1 if truth pairs empty",
+        "false_negative_pairs": 1,
+        "false_positive_pairs": 0,
+        "pairwise_f1": 0.6666666666666666,
+        "pairwise_precision": 1.0,
+        "pairwise_recall": 0.5,
+        "predicted_group_count": 4,
+        "true_group_count": 3,
+        "true_positive_pairs": 1
+      },
+      "predicted_groups": [
+        [
+          "D1"
+        ],
+        [
+          "D2",
+          "M2"
+        ],
+        [
+          "M1"
+        ],
+        [
+          "silent-transmitter"
+        ]
+      ],
+      "rwr_metrics": {
+        "count_absolute_error": 1,
+        "device_count": 5,
+        "empty_pair_convention": "precision=1 only if both pair sets empty; recall=1 if truth pairs empty",
+        "false_negative_pairs": 1,
+        "false_positive_pairs": 0,
+        "pairwise_f1": 0.6666666666666666,
+        "pairwise_precision": 1.0,
+        "pairwise_recall": 0.5,
+        "predicted_group_count": 4,
+        "true_group_count": 3,
+        "true_positive_pairs": 1
+      },
+      "scenario": "incomplete_and_uneven_coverage",
+      "seed": 9500,
+      "source": "synthetic",
+      "valid_partition": true
+    },
+    {
+      "config": {
+        "capture": {
+          "expected_channel": 6
+        },
+        "grouping": {
+          "max_devices_per_group": 2,
+          "min_directional_similarity": 0.0
+        },
+        "rssi": {
+          "max_packets_weight": 10,
+          "min_packets_per_device_pose": 3,
+          "min_poses_per_device": 3,
+          "min_shared_poses": 3,
+          "relative_bin_thresholds_db": [
+            -8,
+            -3,
+            3,
+            8
+          ]
+        },
+        "rwr": {
+          "max_iterations": 1000,
+          "restart_probability": 0.15,
+          "tolerance": 1e-10
+        },
+        "synthetic": {
+          "device_ids": [
+            "M1",
+            "D1",
+            "M2",
+            "D2"
+          ],
+          "group_center_x_m": [
+            2.0,
+            8.0
+          ],
+          "group_sizes": [
+            2,
+            2
+          ],
+          "group_spread_m": 0.2,
+          "missing_observation_probability": 0.0,
+          "noise_sd_db": 12.0,
+          "num_poses": 10,
+          "packets_per_device_pose": 10,
+          "path_loss_exponent": 2.0,
+          "pose_spacing_m": 1.0,
+          "reference_rssi_dbm": -40.0,
+          "shared_environment_sd_db": 1.0,
+          "tx_power_offset_sd_db": 4.0
+        }
+      },
+      "deterministic_under_row_and_manifest_reordering": true,
+      "graph_improved_pairwise_f1": false,
+      "graph_minus_baseline_pairwise_f1": 0.0,
+      "manifest_device_count": 4,
+      "manifest_pose_count": 10,
+      "observation_transformations": {},
+      "observations_count": 400,
+      "observations_summary": {
+        "baseline": {
+          "groups": [
+            [
+              "D1",
+              "M1"
+            ],
+            [
+              "D2",
+              "M2"
+            ]
+          ],
+          "max_devices_per_group": 2,
+          "method": "pearson"
+        },
+        "device_count": 4,
+        "eligible_device_count": 4,
+        "grouping": {
+          "candidate_clique_count": 2,
+          "candidate_lists": {
+            "D1": [
+              "M1"
+            ],
+            "D2": [
+              "M2"
+            ],
+            "M1": [
+              "D1"
+            ],
+            "M2": [
+              "D2"
+            ]
+          },
+          "max_devices_per_group": 2,
+          "min_directional_similarity": 0.0,
+          "overlap_conflict_count": 0,
+          "overlap_policy": "descending_size_then_summed_bidirectional_score_then_lexicographic; greedy_disjoint",
+          "oversized_clique_count": 0
+        },
+        "observed_device_count": 4,
+        "pose_ids": [
+          "P01",
+          "P02",
+          "P03",
+          "P04",
+          "P05",
+          "P06",
+          "P07",
+          "P08",
+          "P09",
+          "P10"
+        ],
+        "quality": {
+          "aggregate_cell_count": 40,
+          "dropped_weak_cell_count": 0,
+          "dropped_weak_packet_count": 0,
+          "low_coverage_devices": [],
+          "per_device": {
+            "D1": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "D2": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "M1": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            },
+            "M2": {
+              "eligible": true,
+              "packet_count": 100,
+              "retained_pose_count": 10
+            }
+          },
+          "per_pose_packet_counts": {
+            "P01": 40,
+            "P02": 40,
+            "P03": 40,
+            "P04": 40,
+            "P05": 40,
+            "P06": 40,
+            "P07": 40,
+            "P08": 40,
+            "P09": 40,
+            "P10": 40
+          },
+          "retained_cell_count": 40,
+          "total_rows": 400,
+          "warnings": []
+        },
+        "receiver_ids": [
+          "RX1"
+        ],
+        "rwr_diagnostics": {
+          "isolated_devices": [],
+          "iterations_by_device": {
+            "D1": 146,
+            "D2": 146,
+            "M1": 146,
+            "M2": 146
+          },
+          "stationary_mass": {
+            "D1": 1.0,
+            "D2": 1.0,
+            "M1": 0.9999999999999999,
+            "M2": 1.0
+          }
+        },
+        "trial_id": "synth001"
+      },
+      "pearson_baseline_groups": [
+        [
+          "D1",
+          "M1"
+        ],
+        [
+          "D2",
+          "M2"
+        ]
+      ],
+      "pearson_baseline_metrics": {
+        "count_absolute_error": 0,
+        "device_count": 4,
+        "empty_pair_convention": "precision=1 only if both pair sets empty; recall=1 if truth pairs empty",
+        "false_negative_pairs": 0,
+        "false_positive_pairs": 0,
+        "pairwise_f1": 1.0,
+        "pairwise_precision": 1.0,
+        "pairwise_recall": 1.0,
+        "predicted_group_count": 2,
+        "true_group_count": 2,
+        "true_positive_pairs": 2
+      },
+      "predicted_groups": [
+        [
+          "D1",
+          "M1"
+        ],
+        [
+          "D2",
+          "M2"
+        ]
+      ],
+      "rwr_metrics": {
+        "count_absolute_error": 0,
+        "device_count": 4,
+        "empty_pair_convention": "precision=1 only if both pair sets empty; recall=1 if truth pairs empty",
+        "false_negative_pairs": 0,
+        "false_positive_pairs": 0,
+        "pairwise_f1": 1.0,
+        "pairwise_precision": 1.0,
+        "pairwise_recall": 1.0,
+        "predicted_group_count": 2,
+        "true_group_count": 2,
+        "true_positive_pairs": 2
+      },
+      "scenario": "negative_control_noise12",
+      "seed": 9500,
+      "source": "synthetic",
+      "valid_partition": true
+    }
+  ],
+  "seed": 9500
+}
