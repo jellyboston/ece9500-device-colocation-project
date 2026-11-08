@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+from dataclasses import dataclass
 import json
 import math
 from pathlib import Path
@@ -115,7 +116,18 @@ def load_wisniff(
     ]
 
 
-def _parse_csi_row(row: list[str], sample_index: int, device_id: str) -> RawSample:
+@dataclass(frozen=True)
+class LegacyCsiRecord:
+    """A validated receiver record; legacy firmware provides no transmitter ID."""
+
+    device_time_ms: int
+    rssi_dbm: float
+    channel: int
+    csi_magnitudes: list[int]
+
+
+def parse_csi_record(row: list[str]) -> LegacyCsiRecord:
+    """Validate legacy CSI fields for both live collection and offline ingestion."""
     if len(row) < 6 or row[0].strip() != "CSI":
         raise ValueError("expected CSI,<millis>,<RSSI>,<channel>,<n>,0,<n magnitudes>")
     count = _integer(row[4], "n_subcarriers", minimum=1)
@@ -123,13 +135,23 @@ def _parse_csi_row(row: list[str], sample_index: int, device_id: str) -> RawSamp
         raise ValueError("CSI sentinel at column 6 must be the literal 0")
     if len(row) != 6 + count:
         raise ValueError(f"CSI n_subcarriers={count} requires {count} magnitudes; found {len(row) - 6}")
-    return RawSample(
-        sample_index=sample_index,
+    return LegacyCsiRecord(
         device_time_ms=_integer(row[1], "device_time_ms"),
-        device_id=device_id,
         rssi_dbm=_rssi(row[2]),
         channel=_channel(row[3]),
         csi_magnitudes=[_integer(item, "CSI magnitude") for item in row[6:]],
+    )
+
+
+def _parse_csi_row(row: list[str], sample_index: int, device_id: str) -> RawSample:
+    record = parse_csi_record(row)
+    return RawSample(
+        sample_index=sample_index,
+        device_id=device_id,
+        device_time_ms=record.device_time_ms,
+        rssi_dbm=record.rssi_dbm,
+        channel=record.channel,
+        csi_magnitudes=record.csi_magnitudes,
     )
 
 
