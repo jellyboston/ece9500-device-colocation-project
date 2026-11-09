@@ -1,0 +1,23 @@
+# Build artifacts and local configuration under wisniff.
+/wisniff/**/.pio
+/wisniff/**/.cache
+/wisniff/**/.dummy
+/wisniff/**/compile_commands.json
+/wisniff/**/private_build_flags.ini
+/wisniff/.venv/
+/wisniff/vscode
+
+# VS Code settings and generated files.
+/.vscode/settings.json
+/wisniff/.vscode/.browse.c_cpp.db*
+/wisniff/.vscode/c_cpp_properties.json
+/wisniff/.vscode/launch.json
+/wisniff/.vscode/ipch
+
+# Python analysis environments, generated results, and private captures.
+/analysis/.venv/
+/analysis/data/raw/
+/analysis/data/processed/
+/analysis/outputs/
+__pycache__/
+.pytest_cache/

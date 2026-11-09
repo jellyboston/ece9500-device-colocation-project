@@ -1,0 +1,46 @@
+{
+  "channel_counts": {
+    "1": 1,
+    "11": 6,
+    "12": 5,
+    "13": 3,
+    "2": 1,
+    "4": 5,
+    "5": 4,
+    "6": 11,
+    "8": 1,
+    "9": 3
+  },
+  "devices_with_repeated_records": 12,
+  "limitations": [
+    "No synchronized receiver poses or per-record timestamps",
+    "No known ownership or colocation labels",
+    "Observed MAC count is not a person count",
+    "Aliases apply only within this scan; raw MAC strings are omitted"
+  ],
+  "record_count": 40,
+  "records_per_scan_alias": {
+    "W001": 1,
+    "W002": 2,
+    "W003": 1,
+    "W004": 6,
+    "W005": 1,
+    "W006": 1,
+    "W007": 3,
+    "W008": 4,
+    "W009": 4,
+    "W010": 1,
+    "W011": 3,
+    "W012": 2,
+    "W013": 2,
+    "W014": 1,
+    "W015": 2,
+    "W016": 2,
+    "W017": 2,
+    "W018": 2
+  },
+  "repeated_record_count": 22,
+  "rssi_max_dbm": -33.0,
+  "rssi_min_dbm": -93.0,
+  "unique_mac_count": 18
+}

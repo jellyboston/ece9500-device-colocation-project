@@ -1,0 +1,24 @@
+[Unit]
+Description=ECE9500 ESP32 TCP capture on Raspberry Pi
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=xrpi4
+WorkingDirectory=/home/xrpi4/ece9500-repo
+ExecStart=/home/xrpi4/ece9500-repo/analysis/.venv/bin/python -u /home/xrpi4/ece9500-repo/wisniff/tools/csi_data.py --transport tcp --host 0.0.0.0 --port 9000 --receiver-id RX1 --channel 6 --headless --output-dir /home/xrpi4/ece9500-repo/analysis/data/raw
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/xrpi4/ece9500-repo/analysis/data/raw
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
