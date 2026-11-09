@@ -9,7 +9,7 @@ import serial
 # --- CONFIGURATION ---
 PORT = "COM6"          # Change to your ESP32 port (e.g., "/dev/ttyUSB0" on Linux/Mac)
 BAUD_RATE = 921600     # Matches your Serial.begin(921600)
-OUTPUT_FILE = "esp32_csi_data.csv"
+OUTPUT_FILE = "esp32_csi_data2.csv"
 # ---------------------
 
 def main():

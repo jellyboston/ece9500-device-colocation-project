@@ -9,9 +9,7 @@
 // 0 = TX (steady pinger, full CSI)
 // 1 = RX (capture)
 // 2 = MOCK (fake mobile device: irregular transmissions, RSSI only at the RX)
-#ifndef ROLE
-#define ROLE 2
-#endif
+#define ROLE 1
 
 #define ROLE_TX 0
 #define ROLE_RX 1
