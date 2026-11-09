@@ -1,0 +1,6 @@
+[
+  {"trial_id": "real001", "device_id": "LAP1", "group_id": "G1"},
+  {"trial_id": "real001", "device_id": "ESP1", "group_id": "G1"},
+  {"trial_id": "real001", "device_id": "LAP2", "group_id": "G2"},
+  {"trial_id": "real001", "device_id": "ESP2", "group_id": "G2"}
+]

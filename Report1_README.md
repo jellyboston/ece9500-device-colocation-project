@@ -257,7 +257,14 @@ Samples and pose events must come from **the same ESP32 recording**. The adapter
 
 ### C3. When the firmware supports multiple transmitters
 
-The current RX firmware identifies the first transmitter and filters later CSI to that one peer. To compare **different devices**, the firmware must log a stable ID *on each sample*. A multi-TX input needs a headered CSV of this form:
+**Live capture update:** [RX TCP and Uno setup](wisniff/tools/RX_TCP_SETUP.md) now
+documents the labeled CSI/PKT writer, C3-compatible observations.csv, and combined
+Uno/RF capture.csv. Uno movement notifications preserve their own clock and do
+not automatically become the same-clock pose events required below.
+
+For a measured four-device setup, follow the [four-device RSSI field guide](analysis/experiments/four_device_rssi/README.md). It includes the track layout, hotspot setup, traffic generator, pose/truth templates, and an audit of the live firmware/collector format mismatch that must be fixed before collection.
+
+The inspected RX firmware now labels RSSI from two configured laptops and CSI from one configured ESP32 source. A second ESP32 transmitter still needs its own source mapping, and the live logger needs to convert the labeled CSI/PKT records into the format below. To compare **different devices**, log a stable ID *on each sample*. A multi-TX input needs a headered CSV of this form:
 
 ```csv
 device_time_ms,device_id,rssi_dbm,channel

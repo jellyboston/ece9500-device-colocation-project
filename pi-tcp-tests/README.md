@@ -1,5 +1,11 @@
 # Pi TCP tests
 
+The new RX firmware and combined Uno capture are documented in
+[RX TCP and Uno setup](../wisniff/tools/RX_TCP_SETUP.md). Tests cover labeled CSI/PKT,
+concurrent Uno events and the firmware's nonblocking TCP transport. The native
+transport/private-flag checks need a C++ compiler; pseudo-serial checks need
+POSIX and pyserial. Legacy framing tests remain supported.
+
 Run from the repository root:
 
 ```sh

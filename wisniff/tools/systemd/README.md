@@ -2,9 +2,14 @@
 
 Run the foreground command in the top-level README first. This unit uses the
 checkout and virtual environment at `/home/xrpi4/ece9500-repo`, runs as `xrpi4`,
-and listens for RX1 on port 9000, expecting channel 6. Edit those settings before
+and listens for RX1 on port 9000 using `rssi-labeled-v1`, expecting channel 1. Edit those settings before
 installation if the experiment uses different values. Each process start makes
 a new recording directory; reconnects stay in the current recording.
+
+For Uno capture, append `--uno-port /dev/serial/by-id/YOUR_UNO --uno-baud 115200`
+to ExecStart after identifying the actual port. See [RX TCP and Uno setup](../RX_TCP_SETUP.md)
+for private flags, upload and timing limitations. Uno input is disabled in the
+example unit until an actual port is configured.
 
 Install and start from the repository root:
 

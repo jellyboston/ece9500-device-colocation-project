@@ -9,17 +9,21 @@
 // 0 = TX (steady pinger, full CSI)
 // 1 = RX (capture)
 // 2 = MOCK (fake mobile device: irregular transmissions, RSSI only at the RX)
+#ifndef ROLE
 #define ROLE 2
+#endif
 
 #define ROLE_TX 0
 #define ROLE_RX 1
 #define ROLE_MOCK 2
 
-#undef CSI_CHANNEL
+#ifndef CSI_CHANNEL
 #define CSI_CHANNEL 1 // must match the hotspot's channel
+#endif
 
-#undef TX_INTERVAL_MS
+#ifndef TX_INTERVAL_MS
 #define TX_INTERVAL_MS 10 // 100 Hz, matches Wi-CaL
+#endif
 
 #ifndef MOCK_MIN_MS
 #define MOCK_MIN_MS 10 // mock sends every MOCK_MIN_MS..MOCK_MAX_MS (random)
@@ -134,6 +138,20 @@ void loop()
 
 // ====================== RX ======================
 #elif ROLE == ROLE_RX
+
+#ifndef RX_TCP_ENABLED
+#define RX_TCP_ENABLED 1
+#endif
+#if RX_TCP_ENABLED
+#include "rx_network_config.h"
+#include "tcp_record_sender.h"
+static TcpRecordSender tcpSender;
+static bool captureActive = false;
+static bool sessionSent = false;
+static uint32_t offlineDrops = 0;
+static char pendingStatus[256];
+static bool haveStatus = false;
+#endif
 
 // ESP32 TX (full CSI). Printed at the TX board's boot: "# TX node ..."
 static const uint8_t ESP_TX_MAC[6] = {0xD8, 0x85, 0xAC, 0x60, 0x00, 0x9C};
@@ -312,7 +330,9 @@ static void startSniffer()
     check(esp_wifi_set_promiscuous_filter(&flt), "promisc_filter");
     check(esp_wifi_set_promiscuous_rx_cb(sniffCb), "promisc_cb");
     check(esp_wifi_set_promiscuous(true), "promisc");
+#if !RX_TCP_ENABLED
     check(esp_wifi_set_channel(CSI_CHANNEL, WIFI_SECOND_CHAN_NONE), "channel(after promisc)");
+#endif
 }
 
 static void emit(const Event &e)
@@ -334,7 +354,11 @@ static void emit(const Event &e)
                      (unsigned long)e.ts_ms, e.rssi, e.ch, KNOWN[e.dev].label);
     }
     line[k++] = '\n';
+#if RX_TCP_ENABLED
+    tcpSender.submit(line, static_cast<size_t>(k));
+#else
     Serial.write((uint8_t *)line, k);
+#endif
 }
 
 void setup()
@@ -342,19 +366,73 @@ void setup()
     Serial.begin(921600);
     delay(1000);
     evQueue = xQueueCreate(128, sizeof(Event));
+#if RX_TCP_ENABLED
+    if (!tcpSender.configure(PI_TCP_HOST, PI_TCP_PORT)) {
+        Serial.println("# ERROR PI_TCP_HOST must be an IPv4 address and port must be valid");
+        while (true) delay(1000);
+    }
+    WiFi.mode(WIFI_STA);
+    WiFi.setSleep(false);
+    WiFi.setAutoReconnect(true);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    check(esp_wifi_set_bandwidth(WIFI_IF_STA, WIFI_BW_HT20), "bandwidth");
+    Serial.println("# Joining configured hotspot; TCP capture waits for matching channel");
+#else
     wifiCommon();
+#endif
     Serial.printf("# RX node %s, channel %d, expecting TX %02X:%02X:%02X:%02X:%02X:%02X\n",
                   WiFi.macAddress().c_str(), CSI_CHANNEL,
                   ESP_TX_MAC[0], ESP_TX_MAC[1], ESP_TX_MAC[2],
                   ESP_TX_MAC[3], ESP_TX_MAC[4], ESP_TX_MAC[5]);
+#if !RX_TCP_ENABLED
     startCsi();
     startSniffer();
+#endif
 }
 
 void loop()
 {
     static uint32_t lastStat = 0;
     static Event e;
+
+#if RX_TCP_ENABLED
+    static uint32_t lastWifiRetry = 0;
+    if (WiFi.status() != WL_CONNECTED && uint32_t(millis() - lastWifiRetry) >= 10000) {
+        lastWifiRetry = millis();
+        WiFi.reconnect();
+    }
+    bool ready = WiFi.status() == WL_CONNECTED && WiFi.channel() == CSI_CHANNEL;
+    if (ready && !captureActive) {
+        startCsi();
+        startSniffer();
+        captureActive = true;
+        Serial.print("# RX associated; IP="); Serial.println(WiFi.localIP());
+    } else if (!ready && captureActive) {
+        esp_wifi_set_csi(false);
+        esp_wifi_set_promiscuous(false);
+        captureActive = false;
+    }
+    tcpSender.poll(millis(), ready);
+    if (!tcpSender.connected()) sessionSent = false;
+    if (tcpSender.connected() && !sessionSent) {
+        char metadata[256];
+        int length = snprintf(metadata, sizeof(metadata),
+            "# SESSION,{\"protocol_version\":\"rssi-labeled-v1\",\"receiver_id\":\"%s\",\"firmware_version\":\"rx-tcp-1\",\"channel\":%u}\n",
+            RX_RECEIVER_ID, static_cast<unsigned>(WiFi.channel()));
+        if (length > 0 && length < static_cast<int>(sizeof(metadata)))
+            sessionSent = tcpSender.submit(metadata, static_cast<size_t>(length));
+    }
+    if (tcpSender.connected() && sessionSent && !tcpSender.busy() && haveStatus) {
+        haveStatus = !tcpSender.submit(pendingStatus, strlen(pendingStatus));
+    }
+    // A bounded batch prevents a busy RF queue from starving network polling.
+    for (unsigned batch = 0; batch < 32; ++batch) {
+        if (tcpSender.connected() && tcpSender.busy()) break;
+        if (xQueueReceive(evQueue, &e, 0) != pdTRUE) break;
+        if (tcpSender.connected() && sessionSent) emit(e);
+        else ++offlineDrops; // Best-effort live capture; no replay across connections.
+    }
+#else
 
     // wait briefly for the first event, then drain whatever backlog has built up
     if (xQueueReceive(evQueue, &e, pdMS_TO_TICKS(5)) == pdTRUE)
@@ -364,6 +442,7 @@ void loop()
             emit(e);
         } while (xQueueReceive(evQueue, &e, 0) == pdTRUE);
     }
+#endif
 
     uint32_t now = millis();
     if (now - lastStat >= 2000)
@@ -375,7 +454,25 @@ void loop()
             Serial.printf(" %s=%lu", KNOWN[i].label, (unsigned long)devCount[i]);
         Serial.printf(" other_data=%lu other_csi=%lu\n",
                       (unsigned long)otherCount, (unsigned long)csiOther);
+#if RX_TCP_ENABLED
+        char status[256];
+        int length = snprintf(status, sizeof(status),
+            "# tcp connections=%lu failures=%lu transport_drop=%lu offline_drop=%lu queue_drop=%lu bad_len=%lu\n",
+            (unsigned long)tcpSender.connections, (unsigned long)tcpSender.failures,
+            (unsigned long)tcpSender.dropped, (unsigned long)offlineDrops,
+            (unsigned long)dropCount, (unsigned long)badLen);
+        Serial.print(status);
+        if (length > 0 && length < static_cast<int>(sizeof(pendingStatus))) {
+            memcpy(pendingStatus, status, static_cast<size_t>(length) + 1);
+            haveStatus = true;
+        }
+        if (WiFi.status() == WL_CONNECTED && WiFi.channel() != CSI_CHANNEL)
+            Serial.printf("# ERROR hotspot channel=%u expected=%u; RF forwarding paused\n", WiFi.channel(), CSI_CHANNEL);
+#endif
     }
+#if RX_TCP_ENABLED
+    delay(1);
+#endif
 }
 
 #else

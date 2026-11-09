@@ -29,31 +29,31 @@ See [Report1_README.md](Report1_README.md) for Python setup, synthetic experimen
 
 ## Pi-Integration
 
-On the Pi, start collection without a desktop:
+See [RX TCP and Uno setup](wisniff/tools/RX_TCP_SETUP.md) for private build flags,
+receiver upload, Uno serial input, file schemas and timestamp limitations.
 
-```sh
-/home/xrpi4/ece9500-repo/analysis/.venv/bin/python /home/xrpi4/ece9500-repo/wisniff/tools/csi_data.py --headless --host 0.0.0.0 --port 9000 --receiver-id RX1 --channel 6
+The Pi listens on port 9000; RX firmware connects as a client after joining the
+same hotspot. Current firmware uses channel 1; configure every radio and the Pi
+logger to the actual hotspot channel.
+
+From the repository root on the Pi:
+
+```bash
+analysis/.venv/bin/python wisniff/tools/csi_data.py \
+  --transport tcp --protocol rssi-labeled-v1 \
+  --host 0.0.0.0 --port 9000 --receiver-id RX1 --channel 1 \
+  --headless --output-dir analysis/data/raw
 ```
 
-Connect the ESP32 RX to the Pi's reachable IP on port 9000. Use a fixed-channel
-2.4 GHz access point, with the RX and ESP-NOW transmitters on channel 6.
-Send UTF-8 lines ending in a newline:
+For simultaneous Uno movement notifications, append `--uno-port UNO_PORT
+--uno-baud 115200`, replacing UNO_PORT with its actual USB serial path. Plain
+START/STOP lines and timestamped `ROBOT,sequence,millis,event` records are supported.
+Both streams are saved in one `capture.csv`; `observations.csv` exports labeled RF
+rows for C3 ingestion. Independent Uno and ESP32 clocks are preserved, not silently
+synchronized. Uno movement events alone do not supply ESP32-clock pose windows.
 
-```text
-CSI,<receiver_millis>,<RSSI>,<channel>,<count>,0,<magnitudes...>
-# POSE_EVENT,P01,CAPTURE_START,<receiver_millis>
-# POSE_EVENT,P01,CAPTURE_END,<receiver_millis>
-```
+Build RX with `pio run -d wisniff -e esp32-c61-rx-tcp` using your existing ignored
+private file and a PI_TCP_HOST define. Serial fallback is the rx-serial environment.
 
-Each recording gets a private folder under `analysis/data/raw/run-*/`, containing
-`csi.csv`, `pose_events.csv`, `session.json`, and `collector.log`. Ctrl+C saves and
-closes it. Replace `--headless` with `--plot` for a display, or use serial:
-`analysis/.venv/bin/python wisniff/tools/csi_data.py /dev/ttyUSB0 --headless`.
-
-For collection after SSH closes, follow the [systemd setup](wisniff/tools/systemd/README.md).
-Stop that service before running a foreground collector on the same port.
-The [protocol and firmware handoff](wisniff/tools/TCP_PROTOCOL.md) explains metadata,
-clock resets, and the proposed future transmitter-ID format. Legacy rows have no
-transmitter ID. Pi mock tests pass; the teammate still needs to add the TCP sender
-and pose markers, then verify a real RX, SSH logout, and optional reboot startup.
-Keep captures out of Git; copy recordings to another computer with `scp` or `rsync`.
+Legacy CSI remains available via `--protocol csi-legacy-v1` and existing test inputs.
+See [Pi tests](pi-tcp-tests/README.md) and [systemd instructions](wisniff/tools/systemd/README.md).

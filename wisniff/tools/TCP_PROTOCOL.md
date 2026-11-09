@@ -1,5 +1,10 @@
 # ESP32 receiver → Pi collection protocol
 
+**Current setup:** [RX TCP and Uno setup](RX_TCP_SETUP.md) describes the implemented
+`rssi-labeled-v1` protocol, labeled CSI/PKT conversion, and simultaneous Uno serial
+logging. The legacy protocol below remains available via `--protocol csi-legacy-v1`.
+The older proposed OBS extension below is not used by the labeled protocol.
+
 The Pi listens on TCP port **9000**, bound to **0.0.0.0** by default. Both are
 configurable. One ESP32 RX connects to the Pi's reachable LAN address; the Pi's
 configured receiver ID identifies that RX, never a transmitter. Serial uses the

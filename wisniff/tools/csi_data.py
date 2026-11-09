@@ -1,7 +1,7 @@
 """Collect newline-delimited ESP32 records over TCP or serial, with optional plots.
 
-The collector needs only Python's standard library for headless TCP operation.
-Legacy CSI validation is shared with the offline analysis, without assigning TX IDs.
+Headless TCP uses the standard library; serial inputs require pyserial.
+Explicit legacy/labeled protocols preserve source IDs and can share a CSV with Uno events.
 """
 
 from __future__ import annotations
@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import collections
 import csv
+from functools import wraps
 from datetime import datetime, timezone
 import json
 import logging
@@ -28,9 +29,11 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from analysis.colocation.ingest import parse_csi_record
+from analysis.colocation.ingest import _integer, _rssi, _channel, _magnitudes, _identifier
 from analysis.colocation.models import PHASES
 
 PROTOCOL_VERSION = "csi-legacy-v1"
+LABELED_PROTOCOL = "rssi-labeled-v1"
 DEFAULT_OUTPUT = REPO_ROOT / "analysis" / "data" / "raw"
 
 
@@ -46,6 +49,37 @@ def private_file(path: Path):
 
 class ReceiverMismatch(ValueError):
     """An advertised receiver/protocol must not contaminate this recording."""
+
+
+def serialized(method):
+    """One synchronized file writer shared by RF and Uno reader threads."""
+    @wraps(method)
+    def locked(self, *args, **kwargs):
+        with self._write_lock:
+            return method(self, *args, **kwargs)
+    return locked
+
+
+def parse_labeled_record(line):
+    fields = next(csv.reader([line], strict=True))
+    if not fields or fields[0] not in {"CSI", "PKT"}:
+        raise ValueError("expected labeled CSI or PKT record")
+    if fields[0] == "PKT":
+        if len(fields) != 5:
+            raise ValueError("PKT requires millis,rssi,channel,transmitter_id")
+        device = _identifier(fields[4], "transmitter_id")
+        magnitudes = None
+    else:
+        if len(fields) < 7:
+            raise ValueError("labeled CSI requires count,transmitter_id,magnitudes")
+        count = _integer(fields[4], "n_subcarriers", minimum=1)
+        if len(fields) != 6 + count:
+            raise ValueError("labeled CSI magnitude count does not match n_subcarriers")
+        device = _identifier(fields[5], "transmitter_id")
+        if device == "0":
+            raise ValueError("legacy sentinel 0 is not a labeled transmitter identity")
+        magnitudes = _magnitudes([_integer(value, "CSI magnitude") for value in fields[6:]])
+    return fields[0], _integer(fields[1], "device_time_ms"), device, _rssi(fields[2]), _channel(fields[3]), magnitudes
 
 
 class LineFramer:
@@ -89,7 +123,11 @@ class CaptureSession:
     """Own the CSVs, metadata and diagnostics for one receiver recording."""
 
     def __init__(self, output_root: Path, receiver_id: str, *, channel=None,
-                 firmware_version=None, flush_interval=1.0, plot=False):
+                 firmware_version=None, flush_interval=1.0, plot=False, protocol=PROTOCOL_VERSION):
+        self._write_lock = threading.RLock()
+        if protocol not in {PROTOCOL_VERSION, LABELED_PROTOCOL}:
+            raise ValueError("unsupported protocol")
+        self.protocol = protocol
         if not receiver_id.strip():
             raise ValueError("receiver_id must be nonempty")
         if not math.isfinite(flush_interval) or flush_interval <= 0:
@@ -105,14 +143,22 @@ class CaptureSession:
         self.counters = dict.fromkeys(("csi_rows", "pose_events", "malformed_records", "incomplete_records",
                                       "oversized_records", "connections", "disconnects", "clock_resets",
                                       "bytes_received", "diagnostic_records"), 0)
+        self.counters.update(pkt_rows=0, robot_events=0, robot_unknown_records=0,
+                             robot_malformed_records=0, robot_clock_resets=0)
+        self._started_monotonic_ns = time.monotonic_ns()
         self.metadata = {
             "schema_version": 1, "receiver_id": receiver_id,
-            "protocol_version": PROTOCOL_VERSION, "firmware_version": firmware_version,
+            "protocol_version": protocol, "firmware_version": firmware_version,
             "channel": channel, "observed_channels": [], "started_at": utc_now(),
             "ended_at": None, "state": "collecting", "counters": self.counters,
+            "started_monotonic_ns": self._started_monotonic_ns,
             "connections": [], "clock_resets": [], "requires_clock_split": False,
             "transmitter_identity": "not provided by legacy CSI records",
+            "robot_clock_synchronized": False,
+            "common_timeline": "Pi monotonic receipt time; USB/TCP delay is not corrected",
         }
+        if protocol == LABELED_PROTOCOL:
+            self.metadata["transmitter_identity"] = "per-record firmware label"
         self.log = logging.getLogger("csi-collector." + name)
         self.log.setLevel(logging.INFO)
         self.log.propagate = False
@@ -123,7 +169,17 @@ class CaptureSession:
             handler = logging.StreamHandler(stream)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
-        self._csi_file = private_file(self.directory / "csi.csv")
+        self._csi_file = private_file(self.directory / ("csi.csv" if protocol == PROTOCOL_VERSION else "csi_labeled.csv"))
+        self._observations_file = private_file(self.directory / "observations.csv")
+        self._observations_writer = csv.writer(self._observations_file, lineterminator="\n")
+        self._observations_writer.writerow(("device_time_ms", "device_id", "rssi_dbm", "channel", "csi_magnitudes_json"))
+        self._capture_file = private_file(self.directory / "capture.csv")
+        self._capture_writer = csv.writer(self._capture_file, lineterminator="\n")
+        self._capture_writer.writerow(("record_index", "pi_received_monotonic_ns", "pi_elapsed_ms", "source", "source_time_ms",
+                                       "record_type", "receiver_id", "device_id", "rssi_dbm", "channel",
+                                       "event", "pose_id", "csi_magnitudes_json", "raw_record"))
+        self._record_index = 0
+        self._uno_previous_ms = None
         self._pose_file = private_file(self.directory / "pose_events.csv")
         self._pose_writer = csv.writer(self._pose_file, lineterminator="\n")
         self._pose_writer.writerow(("event_index", "device_time_ms", "pose_id", "phase"))
@@ -136,7 +192,7 @@ class CaptureSession:
         self.plot_enabled = plot
         self.plot_rows = collections.deque(maxlen=300)
         self.plot_lock = threading.Lock()
-        self.log.info("Capture directory: %s; receiver=%s; protocol=%s", self.directory, receiver_id, PROTOCOL_VERSION)
+        self.log.info("Capture directory: %s; receiver=%s; protocol=%s", self.directory, receiver_id, protocol)
         self.flush()
 
     def __enter__(self):
@@ -145,6 +201,7 @@ class CaptureSession:
     def __exit__(self, exc_type, exc, traceback):
         self.close(failed=exc_type is not None)
 
+    @serialized
     def connect(self, peer: str, transport: str) -> int:
         self.counters["connections"] += 1
         number = self.counters["connections"]
@@ -158,6 +215,7 @@ class CaptureSession:
         self.flush()
         return number
 
+    @serialized
     def disconnect(self, reason: str):
         if self._connection is None:
             return
@@ -180,25 +238,46 @@ class CaptureSession:
             self.log.warning("Possible receiver clock reset/wrap: %s; split recording before analysis", boundary)
         self._last_clock[kind] = timestamp
 
-    def process_record(self, raw: bytes):
+    def _master(self, received_ns, source, kind, raw, *, source_ms="", device="", rssi="",
+                channel="", event="", pose="", magnitudes=None):
+        self._capture_writer.writerow((self._record_index, received_ns,
+                                      f"{(received_ns - self._started_monotonic_ns) / 1_000_000:.3f}", source, source_ms, kind,
+                                      self.receiver_id if source == "ESP32" else "", device, rssi,
+                                      channel, event, pose,
+                                      json.dumps(magnitudes) if magnitudes is not None else "", raw))
+        self._record_index += 1
+
+    @serialized
+    def process_record(self, raw: bytes, received_ns=None):
         """Validate then save. No host timestamp replaces ESP32 uptime."""
+        received_ns = time.monotonic_ns() if received_ns is None else received_ns
         try:
             line = raw.decode("utf-8", errors="strict")
             if not line.strip():
                 return
-            if line.startswith("CSI,"):
-                record = parse_csi_record(next(csv.reader([line], strict=True)))
-                self._clock("CSI", record.device_time_ms)
-                self._csi_file.write(line + "\n")
-                self.counters["csi_rows"] += 1
-                if record.channel not in self.metadata["observed_channels"]:
-                    self.metadata["observed_channels"].append(record.channel)
+            if line.startswith("CSI,") or line.startswith("PKT,"):
+                if self.protocol == LABELED_PROTOCOL:
+                    kind, timestamp, device, rssi, channel, magnitudes = parse_labeled_record(line)
+                    self._observations_writer.writerow((timestamp, device, rssi, channel,
+                                                       json.dumps(magnitudes) if magnitudes is not None else ""))
+                else:
+                    record = parse_csi_record(next(csv.reader([line], strict=True)))
+                    kind, timestamp, device, rssi, channel, magnitudes = (
+                        "CSI", record.device_time_ms, "", record.rssi_dbm, record.channel, record.csi_magnitudes)
+                self._clock("RF", timestamp)
+                if kind == "CSI":
+                    self._csi_file.write(line + "\n")
+                self.counters["csi_rows" if kind == "CSI" else "pkt_rows"] += 1
+                self._master(received_ns, "ESP32", kind, line, source_ms=timestamp,
+                             device=device, rssi=rssi, channel=channel, magnitudes=magnitudes)
+                if channel not in self.metadata["observed_channels"]:
+                    self.metadata["observed_channels"].append(channel)
                     expected = self.metadata["channel"]
-                    if expected is not None and record.channel != expected:
-                        self.log.warning("Channel mismatch: configured=%s observed=%s", expected, record.channel)
-                if self.plot_enabled:
+                    if expected is not None and channel != expected:
+                        self.log.warning("Channel mismatch: configured=%s observed=%s", expected, channel)
+                if self.plot_enabled and magnitudes is not None:
                     with self.plot_lock:
-                        self.plot_rows.append(record.csi_magnitudes)
+                        self.plot_rows.append(magnitudes)
             elif line.startswith("# POSE_EVENT"):
                 fields = next(csv.reader([line], strict=True))
                 if len(fields) != 4 or fields[0] != "# POSE_EVENT":
@@ -211,6 +290,7 @@ class CaptureSession:
                 index = self.counters["pose_events"]
                 self._pose_writer.writerow((index, timestamp, pose, phase))
                 self.counters["pose_events"] += 1
+                self._master(received_ns, "ESP32", "POSE_EVENT", line, source_ms=timestamp, event=phase, pose=pose)
                 self.log.info("Pose event #%d: %s %s receiver_ms=%d", index, pose, phase, timestamp)
                 self.flush(sync=True)
             elif line.startswith("# SESSION,"):
@@ -228,6 +308,41 @@ class CaptureSession:
             # Avoid echoing arbitrary measurement payloads or control characters.
             self.log.warning("Malformed record (%d bytes): %s", len(raw), exc)
 
+    @serialized
+    def process_robot_record(self, raw: bytes, received_ns=None, start_token="START", stop_token="STOP"):
+        """Record Uno movement events; never reinterpret its uptime as RX uptime."""
+        received_ns = time.monotonic_ns() if received_ns is None else received_ns
+        try:
+            line = raw.decode("utf-8", errors="strict").strip()
+            if not line:
+                return
+            fields = next(csv.reader([line], strict=True))
+            timestamp, sequence = "", None
+            if len(fields) == 1 and fields[0] in {start_token, stop_token}:
+                event = "START" if fields[0] == start_token else "STOP"
+            elif len(fields) == 4 and fields[0] == "ROBOT" and fields[3] in {"START", "STOP"}:
+                sequence = _integer(fields[1], "Uno event_sequence")
+                timestamp = _integer(fields[2], "Uno millis")
+                event = fields[3]
+            else:
+                self.counters["robot_unknown_records"] += 1
+                self._master(received_ns, "UNO", "ROBOT_UNKNOWN", line)
+                self.log.warning("Unrecognized Uno record saved without interpreting movement")
+                return
+            if timestamp != "":
+                if self._uno_previous_ms is not None and timestamp < self._uno_previous_ms:
+                    self.counters["robot_clock_resets"] += 1
+                    self.log.warning("Uno clock reset/wrap; original source clock retained")
+                self._uno_previous_ms = timestamp
+            self._master(received_ns, "UNO", "ROBOT", line, source_ms=timestamp, event=event)
+            self.counters["robot_events"] += 1
+            self.metadata["last_robot_event"] = {"event": event, "source_time_ms": timestamp,
+                                                 "event_sequence": sequence, "pi_received_monotonic_ns": received_ns}
+            self.flush(sync=True)
+        except (UnicodeDecodeError, ValueError, csv.Error) as exc:
+            self.counters["robot_malformed_records"] += 1
+            self.log.warning("Malformed Uno record: %s", exc)
+
     def _session_record(self, payload: str):
         def reject_constant(value):
             raise ValueError(f"SESSION contains non-JSON number {value}")
@@ -239,7 +354,7 @@ class CaptureSession:
             raise ValueError("SESSION supports only receiver_id, protocol_version, firmware_version and channel")
         if advertised.get("receiver_id") != self.receiver_id:
             raise ReceiverMismatch("SESSION receiver_id does not match configured receiver; disconnecting")
-        if advertised.get("protocol_version") != PROTOCOL_VERSION:
+        if advertised.get("protocol_version") != self.protocol:
             raise ReceiverMismatch("unsupported SESSION protocol_version; disconnecting")
         firmware = advertised.get("firmware_version")
         channel = advertised.get("channel")
@@ -258,6 +373,7 @@ class CaptureSession:
         self.log.info("Receiver session metadata: %s", advertised)
         self.flush(sync=True)
 
+    @serialized
     def maybe_flush(self):
         now = time.monotonic()
         if now - self._last_summary >= 10:
@@ -266,8 +382,9 @@ class CaptureSession:
         if now - self._last_flush >= self._flush_interval:
             self.flush()
 
+    @serialized
     def flush(self, *, sync=False):
-        for handle in (self._csi_file, self._pose_file, self._log_file):
+        for handle in (self._csi_file, self._pose_file, self._log_file, self._capture_file, self._observations_file):
             handle.flush()
             if sync:
                 os.fsync(handle.fileno())
@@ -285,6 +402,7 @@ class CaptureSession:
             temporary.unlink(missing_ok=True)
         self._last_flush = time.monotonic()
 
+    @serialized
     def close(self, *, failed=False):
         if self._closed:
             return
@@ -295,7 +413,7 @@ class CaptureSession:
             self.flush(sync=True)
         finally:
             self._closed = True
-            for handle in (self._csi_file, self._pose_file):
+            for handle in (self._csi_file, self._pose_file, self._capture_file, self._observations_file):
                 handle.close()
             for handler in list(self.log.handlers):
                 handler.close()
@@ -350,9 +468,10 @@ class TcpCollector:
                                 continue
                             if not data:
                                 break
+                            received_ns = time.monotonic_ns()
                             self.session.counters["bytes_received"] += len(data)
                             for record in framer.feed(data):
-                                self.session.process_record(record)
+                                self.session.process_record(record, received_ns=received_ns)
                         if self.stop_event.is_set():
                             reason = "collector shutdown"
                     except (OSError, ReceiverMismatch) as exc:
@@ -381,9 +500,10 @@ class SerialCollector:
                     self.session.connect(self.port, "serial")
                     while not self.stop_event.is_set():
                         data = device.read(min(device.in_waiting or 1, 65536))
+                        received_ns = time.monotonic_ns()
                         self.session.counters["bytes_received"] += len(data)
                         for record in framer.feed(data):
-                            self.session.process_record(record)
+                            self.session.process_record(record, received_ns=received_ns)
                         self.session.maybe_flush()
             except (serial.SerialException, OSError, ReceiverMismatch) as exc:
                 reason = str(exc)
@@ -391,6 +511,42 @@ class SerialCollector:
             finally:
                 framer.finish()
                 self.session.disconnect(reason)
+            self.stop_event.wait(1)
+
+
+class UnoCollector:
+    """Read the autonomous robot controller without issuing motion commands."""
+
+    def __init__(self, session, port, baud, stop_event, *, start_token="START", stop_token="STOP"):
+        self.session, self.port, self.baud = session, port, baud
+        self.stop_event = stop_event
+        self.start_token, self.stop_token = start_token, stop_token
+
+    def serve_forever(self):
+        import serial
+
+        while not self.stop_event.is_set():
+            framer = LineFramer(self.session)
+            try:
+                with serial.Serial(self.port, self.baud, timeout=0.25) as device:
+                    with self.session._write_lock:
+                        self.session.metadata["uno"] = {"port": self.port, "baud": self.baud, "state": "connected"}
+                        self.session.flush()
+                    self.session.log.info("Uno connected on %s at %d baud", self.port, self.baud)
+                    while not self.stop_event.is_set():
+                        data = device.read(min(device.in_waiting or 1, 65536))
+                        received_ns = time.monotonic_ns()
+                        for record in framer.feed(data):
+                            self.session.process_robot_record(record, received_ns=received_ns,
+                                                              start_token=self.start_token, stop_token=self.stop_token)
+                        self.session.maybe_flush()
+            except (serial.SerialException, OSError) as exc:
+                self.session.log.warning("Uno serial error: %s; retrying in 1 second", exc)
+            finally:
+                framer.finish()
+                with self.session._write_lock:
+                    self.session.metadata["uno"] = {"port": self.port, "baud": self.baud, "state": "disconnected"}
+                    self.session.flush()
             self.stop_event.wait(1)
 
 
@@ -445,6 +601,11 @@ def main(argv=None):
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--channel", type=int, choices=range(1, 15), help="expected fixed Wi-Fi channel")
     parser.add_argument("--firmware-version", help="operator-supplied firmware revision when known")
+    parser.add_argument("--protocol", choices=(PROTOCOL_VERSION, LABELED_PROTOCOL), default=PROTOCOL_VERSION)
+    parser.add_argument("--uno-port", help="Uno serial port; logs movement alongside RF in capture.csv")
+    parser.add_argument("--uno-baud", type=int, default=115200)
+    parser.add_argument("--uno-start-token", default="START", help="exact plain-text Uno movement-start line")
+    parser.add_argument("--uno-stop-token", default="STOP", help="exact plain-text Uno movement-stop line")
     parser.add_argument("--baud", type=int, default=921600)
     parser.add_argument("--flush-interval", type=positive_float, default=1.0)
     parser.add_argument("--max-record-bytes", type=int, default=16384)
@@ -460,6 +621,17 @@ def main(argv=None):
     if not 0 <= args.port <= 65535 or args.baud <= 0 or args.max_record_bytes <= 0:
         parser.error("port must be 0..65535; baud and max-record-bytes must be positive")
     count = len(args.serial_ports) if transport == "serial" else 1
+    if args.uno_baud <= 0 or not args.uno_start_token or not args.uno_stop_token or args.uno_start_token == args.uno_stop_token:
+        parser.error("Uno baud must be positive and start/stop tokens must be distinct and nonempty")
+    if args.uno_port:
+        if count != 1:
+            parser.error("--uno-port requires exactly one RF input for one combined recording")
+        if any(os.path.realpath(args.uno_port) == os.path.realpath(port) for port in args.serial_ports):
+            parser.error("Uno and receiver must use separate serial ports")
+        try:
+            import serial
+        except ImportError:
+            parser.error("--uno-port needs pyserial; install analysis/requirements.txt in the active environment")
     receiver_ids = args.receiver_id or [f"RX{index + 1}" for index in range(count)]
     if len(receiver_ids) != count or any(not label.strip() for label in receiver_ids) or len(set(receiver_ids)) != count:
         parser.error("provide one unique nonempty --receiver-id per input")
@@ -482,7 +654,7 @@ def main(argv=None):
         for index, receiver in enumerate(receiver_ids):
             session = CaptureSession(args.output_dir, receiver, channel=args.channel,
                                      firmware_version=args.firmware_version, flush_interval=args.flush_interval,
-                                     plot=args.plot)
+                                     plot=args.plot, protocol=args.protocol)
             sessions.append(session)
             if transport == "tcp":
                 collector = TcpCollector(session, args.host, args.port, stop_event=stop_event,
@@ -491,6 +663,12 @@ def main(argv=None):
                 collector = SerialCollector(session, args.serial_ports[index], args.baud, stop_event,
                                             args.max_record_bytes)
             worker = threading.Thread(target=collect, args=(collector,), name=f"collector-{index}")
+            worker.start()
+            workers.append(worker)
+        if args.uno_port:
+            uno = UnoCollector(sessions[0], args.uno_port, args.uno_baud, stop_event,
+                               start_token=args.uno_start_token, stop_token=args.uno_stop_token)
+            worker = threading.Thread(target=collect, args=(uno,), name="collector-uno")
             worker.start()
             workers.append(worker)
         if args.plot:
