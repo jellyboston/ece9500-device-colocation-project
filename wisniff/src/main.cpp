@@ -5,9 +5,8 @@
 #include "soc/soc_caps.h"
 #include <string.h>
 
- // 0 = TX (pinger), 1 = RX (CSI capture)
+// 0 = TX (pinger), 1 = RX (capture)
 #define ROLE 1
-
 
 #define ROLE_TX 0
 #define ROLE_RX 1
@@ -16,21 +15,28 @@
 #define CSI_CHANNEL 6
 #endif
 #ifndef TX_INTERVAL_MS
-#define TX_INTERVAL_MS 10   // 100 Hz; can go lower
+#define TX_INTERVAL_MS 10
 #endif
 
 #define MAX_SC 306
 #define PKT_MAGIC 0xC51C51A5u
 
-struct __attribute__((packed)) Pkt { uint32_t magic; uint32_t seq; };
+struct __attribute__((packed)) Pkt
+{
+    uint32_t magic;
+    uint32_t seq;
+};
 
-static const uint8_t BCAST[6] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+static const uint8_t BCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-static void check(esp_err_t e, const char *what) {
-    if (e != ESP_OK) Serial.printf("# ERROR %s: %s\n", what, esp_err_to_name(e));
+static void check(esp_err_t e, const char *what)
+{
+    if (e != ESP_OK)
+        Serial.printf("# ERROR %s: %s\n", what, esp_err_to_name(e));
 }
 
-static void wifiCommon() {
+static void wifiCommon()
+{
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
     WiFi.setSleep(false);
@@ -40,8 +46,9 @@ static void wifiCommon() {
 
 // ====================== TX ======================
 #if ROLE == ROLE_TX
-void setup() {
-    Serial.begin(115200);
+void setup()
+{
+    Serial.begin(921600);
     delay(500);
     wifiCommon();
     Serial.printf("# TX node %s, channel %d\n", WiFi.macAddress().c_str(), CSI_CHANNEL);
@@ -56,12 +63,14 @@ void setup() {
 
     esp_now_rate_config_t rc = {};
     rc.phymode = WIFI_PHY_MODE_HT20;
-    rc.rate = WIFI_PHY_RATE_MCS0_LGI;   // OFDM so frames carry CSI
+    rc.rate = WIFI_PHY_RATE_MCS0_LGI;
     check(esp_now_set_peer_rate_config(BCAST, &rc), "set_peer_rate_config");
 }
 
-void loop() {
+void loop()
+{
     static uint32_t seq = 0;
+    // understand what exactly tick count is
     static TickType_t last = xTaskGetTickCount();
     Pkt p = {PKT_MAGIC, seq++};
     esp_now_send(BCAST, (uint8_t *)&p, sizeof(p));
@@ -70,99 +79,261 @@ void loop() {
 
 // ====================== RX ======================
 #elif ROLE == ROLE_RX
-struct CsiFrame {
-    uint32_t ts_ms; int8_t rssi; uint8_t ch; uint16_t n; uint8_t mag[MAX_SC];
+
+// ESP32  Tx Addresses
+// TX node D8:85:AC:60:00:9C
+static const uint8_t ESP_TX_MAC[6] = {0xD8, 0x85, 0xAC, 0x60, 0x00, 0x9C};
+#define TX_LABEL "ESP"
+
+// ---- Laptops / other devices to label (RSSI only). Keep at least one entry. ----
+struct KnownDev
+{
+    const char *label;
+    uint8_t mac[6];
+};
+static const KnownDev KNOWN[] = {
+    // e2:c8:65:62:81:0f (Jake)
+    {"LAP1", {0xE2, 0xC8, 0x65, 0x62, 0x81, 0x0f}},
+    // 30:89:4a:6f:b5:71 (Cindy)
+    {"LAP2", {0x30, 0x89, 0x4A, 0x6F, 0xB5, 0x71}},
+};
+#define N_KNOWN (sizeof(KNOWN) / sizeof(KNOWN[0]))
+
+#define CSI_EXPECTED_LEN 114
+#define CSI_DC_INDEX 28
+#define SC_MAX 26
+#define MAX_SC (2 * SC_MAX)
+
+// struct CsiFrame
+// {
+//     uint32_t ts_ms;
+//     int8_t rssi;
+//     uint8_t ch;
+//     uint16_t n;
+//     uint8_t mag[MAX_SC];
+// };
+// struct PktRec
+// { // RSSI-only record for non-ESP devices
+//     uint32_t ts_ms;
+//     int8_t rssi;
+//     uint8_t ch;
+//     uint8_t dev;
+// };
+
+enum : uint8_t
+{
+    EV_CSI = 0,
+    EV_PKT = 1
+};
+struct Event
+{
+    uint32_t ts_ms;
+    int8_t rssi;
+    uint8_t ch;
+    uint8_t type; // EV_CSI / EV_PKT
+    uint8_t dev;  // EV_PKT: index into KNOWN
+    uint8_t n;    // EV_CSI: subcarrier count
+    uint8_t mag[MAX_SC];
 };
 
-static uint8_t peerMac[6];
-static volatile bool havePeer = false;
-static QueueHandle_t csiQueue;
-static volatile uint32_t rxCount = 0, dropCount = 0;
+static QueueHandle_t evQueue;
+static volatile uint32_t rxCount = 0, dropCount = 0, badLen = 0, csiOther = 0;
+static volatile uint32_t devCount[N_KNOWN] = {0};
+static volatile uint32_t otherCount = 0;
 
-static void onRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
-    if (havePeer || len < (int)sizeof(Pkt)) return;
-    Pkt p; memcpy(&p, data, sizeof(p));
-    if (p.magic != PKT_MAGIC) return;
-    memcpy(peerMac, info->src_addr, 6);
-    havePeer = true;
-}
+// ESP-NOW receive: only used to learn the ESP32 TX's MAC.
+// static void onRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len)
+// {
+//     if (havePeer || len < (int)sizeof(Pkt))
+//         return;
+//     Pkt p;
+//     memcpy(&p, data, sizeof(p));
+//     if (p.magic != PKT_MAGIC)
+//         return;
+//     memcpy(peerMac, info->src_addr, 6);
+//     havePeer = true;
+// }
 
-static inline uint8_t isqrt32(uint32_t x) {
+static inline uint8_t isqrt32(uint32_t x)
+{
     uint32_t res = 0, bit = 1u << 14;
-    while (bit > x) bit >>= 2;
-    while (bit) {
-        if (x >= res + bit) { x -= res + bit; res = (res >> 1) + bit; }
-        else res >>= 1;
+    while (bit > x)
+        bit >>= 2;
+    while (bit)
+    {
+        if (x >= res + bit)
+        {
+            x -= res + bit;
+            res = (res >> 1) + bit;
+        }
+        else
+            res >>= 1;
         bit >>= 2;
     }
     return (uint8_t)res;
 }
 
-static void csiCb(void *ctx, wifi_csi_info_t *info) {
-    if (!havePeer || !info || !info->buf || info->len < 2) return;
-    if (memcmp(info->mac, peerMac, 6) != 0) return;
-
-    static CsiFrame f;
-    f.ts_ms = millis();
-    f.rssi = info->rx_ctrl.rssi;
-    f.ch = info->rx_ctrl.channel;
-    uint16_t n = info->len / 2;
-    if (n > MAX_SC) n = MAX_SC;
-    f.n = n;
-    for (uint16_t i = 0; i < n; i++) {
-        int32_t im = info->buf[2*i], re = info->buf[2*i+1];
-        f.mag[i] = isqrt32((uint32_t)(re*re + im*im));
-    }
-    rxCount++;
-    if (xQueueSend(csiQueue, &f, 0) != pdTRUE) dropCount++;
+// ---- Source classification: the ONLY place MAC addresses are interpreted. ----
+// Returns index into KNOWN, or -1 if unknown. Swap this out later for MAC-blind operation.
+static int classify(const uint8_t *mac)
+{
+    for (size_t i = 0; i < N_KNOWN; i++)
+        if (memcmp(mac, KNOWN[i].mac, 6) == 0)
+            return (int)i;
+    return -1;
 }
 
-static void startCsi() {
+// Wi-Fi task context: keep short, no printing.
+static void csiCb(void *ctx, wifi_csi_info_t *info)
+{
+    if (!info || !info->buf)
+        return;
+    if (memcmp(info->mac, ESP_TX_MAC, 6) != 0)
+    {
+        csiOther += 1;
+        return; // full CSI for ESP TX only
+    }
+    if (info->len != CSI_EXPECTED_LEN)
+    {
+        badLen += 1;
+        return;
+    }
+
+    static Event e;
+    e.type = EV_CSI;
+    e.ts_ms = millis();
+    e.rssi = info->rx_ctrl.rssi;
+    e.ch = info->rx_ctrl.channel;
+    e.dev = 0;
+
+    uint8_t w = 0;
+    for (int k = -SC_MAX; k <= SC_MAX; k++)
+    {
+        if (k == 0)
+            continue;
+        int idx = k + CSI_DC_INDEX;
+        int32_t im = info->buf[2 * idx];
+        int32_t re = info->buf[2 * idx + 1];
+        e.mag[w++] = isqrt32((uint32_t)(re * re + im * im));
+    }
+    e.n = w;
+
+    rxCount += 1;
+    if (xQueueSend(evQueue, &e, 0) != pdTRUE)
+    {
+        dropCount += 1;
+    }
+}
+
+// Promiscuous callback: laptops etc. Reads transmitter address from the 802.11 header.
+static void sniffCb(void *buf, wifi_promiscuous_pkt_type_t type)
+{
+    if (type != WIFI_PKT_DATA)
+        return;
+    const wifi_promiscuous_pkt_t *pkt = (const wifi_promiscuous_pkt_t *)buf;
+    if (pkt->rx_ctrl.sig_len < 24)
+        return;
+    int idx = classify(pkt->payload + 10); // addr2 = transmitter
+    if (idx < 0)
+    {
+        otherCount++;
+        return;
+    } // unknown device: count only
+
+    Event e = {};
+    e.type = EV_PKT;
+    e.ts_ms = millis();
+    e.rssi = pkt->rx_ctrl.rssi;
+    e.ch = pkt->rx_ctrl.channel;
+    e.dev = (uint8_t)idx;
+    devCount[idx]++;
+    if (xQueueSend(evQueue, &e, 0) != pdTRUE)
+        dropCount++;
+}
+
+static void startCsi()
+{
     wifi_csi_config_t cfg = {};
 #if SOC_WIFI_HE_SUPPORT
-    cfg.enable = 1; cfg.acquire_csi_legacy = 1; cfg.acquire_csi_ht20 = 1; cfg.acquire_csi_su = 1;
+    cfg.enable = 1;
+    cfg.acquire_csi_legacy = 1;
+    cfg.acquire_csi_ht20 = 1;
+    cfg.acquire_csi_su = 1;
 #else
-    cfg.lltf_en = true; cfg.htltf_en = true; cfg.stbc_htltf2_en = true;
-    cfg.ltf_merge_en = true; cfg.channel_filter_en = true;
+    cfg.lltf_en = true;
+    cfg.htltf_en = true;
+    cfg.stbc_htltf2_en = true;
+    cfg.ltf_merge_en = true;
+    cfg.channel_filter_en = true;
 #endif
     check(esp_wifi_set_csi_config(&cfg), "set_csi_config");
     check(esp_wifi_set_csi_rx_cb(csiCb, nullptr), "set_csi_rx_cb");
     check(esp_wifi_set_csi(true), "set_csi");
 }
 
-void setup() {
+static void startSniffer()
+{
+    wifi_promiscuous_filter_t flt = {};
+    // MGMT too, so the TX's ESP-NOW (action) frames still reach the CSI path.
+    flt.filter_mask = WIFI_PROMIS_FILTER_MASK_MGMT | WIFI_PROMIS_FILTER_MASK_DATA;
+    check(esp_wifi_set_promiscuous_filter(&flt), "promisc_filter");
+    check(esp_wifi_set_promiscuous_rx_cb(sniffCb), "promisc_cb");
+    check(esp_wifi_set_promiscuous(true), "promisc");
+    check(esp_wifi_set_channel(CSI_CHANNEL, WIFI_SECOND_CHAN_NONE), "channel(after promisc)");
+}
+
+static void emit(const Event &e)
+{
+    static char line[512];
+    int k;
+    if (e.type == EV_CSI)
+    {
+        // CSI,ts_ms,rssi,channel,n,label,mag0,mag1,...
+        k = snprintf(line, sizeof(line), "CSI,%lu,%d,%u,%u,%s",
+                     (unsigned long)e.ts_ms, e.rssi, e.ch, e.n, TX_LABEL);
+        for (uint8_t i = 0; i < e.n && k < (int)sizeof(line) - 6; i++)
+            k += snprintf(line + k, sizeof(line) - k, ",%u", e.mag[i]);
+    }
+    else
+    {
+        // PKT,ts_ms,rssi,channel,label
+        k = snprintf(line, sizeof(line), "PKT,%lu,%d,%u,%s",
+                     (unsigned long)e.ts_ms, e.rssi, e.ch, KNOWN[e.dev].label);
+    }
+    line[k++] = '\n';
+    Serial.write((uint8_t *)line, k);
+}
+
+void setup()
+{
     Serial.begin(921600);
     delay(1000);
-    csiQueue = xQueueCreate(32, sizeof(CsiFrame));
+    evQueue = xQueueCreate(64, sizeof(Event));
     wifiCommon();
-    Serial.printf("# RX node %s, channel %d\n", WiFi.macAddress().c_str(), CSI_CHANNEL);
-    check(esp_now_init(), "esp_now_init");
-    esp_now_register_recv_cb(onRecv);   // only to learn TX's MAC
+    Serial.printf("# RX node %s, channel %d, expecting TX %02X:%02X:%02X:%02X:%02X:%02X\n",
+                  WiFi.macAddress().c_str(), CSI_CHANNEL,
+                  ESP_TX_MAC[0], ESP_TX_MAC[1], ESP_TX_MAC[2],
+                  ESP_TX_MAC[3], ESP_TX_MAC[4], ESP_TX_MAC[5]);
     startCsi();
+    startSniffer();
 }
 
 void loop() {
     static uint32_t lastStat = 0;
-    static CsiFrame f;
-    static char line[2048];
+    static Event e;
 
-    if (xQueueReceive(csiQueue, &f, pdMS_TO_TICKS(5)) == pdTRUE) {
-        int k = snprintf(line, sizeof(line), "CSI,%lu,%d,%u,%u,%u",
-                         (unsigned long)f.ts_ms, f.rssi, f.ch, f.n, 0u);
-        for (uint16_t i = 0; i < f.n && k < (int)sizeof(line) - 6; i++)
-            k += snprintf(line + k, sizeof(line) - k, ",%u", f.mag[i]);
-        line[k++] = '\n';
-        Serial.write((uint8_t *)line, k);
-    }
+    if (xQueueReceive(evQueue, &e, pdMS_TO_TICKS(5)) == pdTRUE)
+        emit(e);
 
     uint32_t now = millis();
     if (now - lastStat >= 2000) {
         lastStat = now;
-        if (havePeer)
-            Serial.printf("# peer %02X:%02X:%02X:%02X:%02X:%02X, csi=%lu, dropped=%lu\n",
-                peerMac[0],peerMac[1],peerMac[2],peerMac[3],peerMac[4],peerMac[5],
-                (unsigned long)rxCount, (unsigned long)dropCount);
-        else Serial.println("# searching for peer...");
+        Serial.printf("# esp=%lu drop=%lu bad_len=%lu", (unsigned long)rxCount,
+                      (unsigned long)dropCount, (unsigned long)badLen);
+        for (size_t i = 0; i < N_KNOWN; i++)
+            Serial.printf(" %s=%lu", KNOWN[i].label, (unsigned long)devCount[i]);
+        Serial.printf(" other_data=%lu other_csi=%lu\n",
+                      (unsigned long)otherCount, (unsigned long)csiOther);
     }
 }
 

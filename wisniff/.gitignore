@@ -7,3 +7,4 @@
 .vscode/ipch
 compile_commands.json
 private_build_flags.ini
+esp32_list.txt
