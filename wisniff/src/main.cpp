@@ -2,23 +2,32 @@
 #include <WiFi.h>
 #include <esp_wifi.h>
 #include <esp_now.h>
+#include <esp_random.h>
 #include "soc/soc_caps.h"
 #include <string.h>
 
-// 0 = TX (pinger), 1 = RX (capture)
-#define ROLE 1
+// 0 = TX (steady pinger, full CSI)
+// 1 = RX (capture)
+// 2 = MOCK (fake mobile device: irregular transmissions, RSSI only at the RX)
+#define ROLE 2
 
 #define ROLE_TX 0
 #define ROLE_RX 1
+#define ROLE_MOCK 2
 
-#ifndef CSI_CHANNEL
-#define CSI_CHANNEL 6
+#undef CSI_CHANNEL
+#define CSI_CHANNEL 1 // must match the hotspot's channel
+
+#undef TX_INTERVAL_MS
+#define TX_INTERVAL_MS 10 // 100 Hz, matches Wi-CaL
+
+#ifndef MOCK_MIN_MS
+#define MOCK_MIN_MS 10 // mock sends every MOCK_MIN_MS..MOCK_MAX_MS (random)
 #endif
-#ifndef TX_INTERVAL_MS
-#define TX_INTERVAL_MS 10
+#ifndef MOCK_MAX_MS
+#define MOCK_MAX_MS 50
 #endif
 
-#define MAX_SC 306
 #define PKT_MAGIC 0xC51C51A5u
 
 struct __attribute__((packed)) Pkt
@@ -44,15 +53,11 @@ static void wifiCommon()
     check(esp_wifi_set_channel(CSI_CHANNEL, WIFI_SECOND_CHAN_NONE), "channel");
 }
 
-// ====================== TX ======================
-#if ROLE == ROLE_TX
-void setup()
-{
-    Serial.begin(921600);
-    delay(500);
-    wifiCommon();
-    Serial.printf("# TX node %s, channel %d\n", WiFi.macAddress().c_str(), CSI_CHANNEL);
+// ================== TX and MOCK share the same radio setup ==================
+#if ROLE == ROLE_TX || ROLE == ROLE_MOCK
 
+static void startEspNowTx()
+{
     check(esp_now_init(), "esp_now_init");
     esp_now_peer_info_t p = {};
     memcpy(p.peer_addr, BCAST, 6);
@@ -63,39 +68,92 @@ void setup()
 
     esp_now_rate_config_t rc = {};
     rc.phymode = WIFI_PHY_MODE_HT20;
-    rc.rate = WIFI_PHY_RATE_MCS0_LGI;
+    rc.rate = WIFI_PHY_RATE_MCS0_LGI; // OFDM so the RX can decode / measure it
     check(esp_now_set_peer_rate_config(BCAST, &rc), "set_peer_rate_config");
 }
 
+void setup()
+{
+    Serial.begin(921600);
+    delay(500);
+    wifiCommon();
+#if ROLE == ROLE_TX
+    Serial.printf("# TX node %s, channel %d, interval %d ms\n",
+                  WiFi.macAddress().c_str(), CSI_CHANNEL, TX_INTERVAL_MS);
+#else
+    Serial.printf("# MOCK node %s, channel %d, interval %d-%d ms\n",
+                  WiFi.macAddress().c_str(), CSI_CHANNEL, MOCK_MIN_MS, MOCK_MAX_MS);
+#endif
+    startEspNowTx();
+}
+
+// ====================== TX ======================
+#if ROLE == ROLE_TX
 void loop()
 {
-    static uint32_t seq = 0;
-    // understand what exactly tick count is
+    static uint32_t seq = 0, sent = 0, fail = 0, lastStat = 0;
     static TickType_t last = xTaskGetTickCount();
+
     Pkt p = {PKT_MAGIC, seq++};
-    esp_now_send(BCAST, (uint8_t *)&p, sizeof(p));
-    vTaskDelayUntil(&last, pdMS_TO_TICKS(TX_INTERVAL_MS));
+    if (esp_now_send(BCAST, (uint8_t *)&p, sizeof(p)) == ESP_OK)
+        sent++;
+    else
+        fail++;
+    vTaskDelayUntil(&last, pdMS_TO_TICKS(TX_INTERVAL_MS)); // steady period, no drift
+
+    if (millis() - lastStat >= 2000)
+    {
+        lastStat = millis();
+        Serial.printf("# tx sent=%lu fail=%lu\n", (unsigned long)sent, (unsigned long)fail);
+    }
 }
+
+// ====================== MOCK ======================
+#else
+void loop()
+{
+    static uint32_t seq = 0, sent = 0, fail = 0, lastStat = 0;
+
+    Pkt p = {PKT_MAGIC, seq++};
+    if (esp_now_send(BCAST, (uint8_t *)&p, sizeof(p)) == ESP_OK)
+        sent++;
+    else
+        fail++;
+
+    // irregular gap, like a phone: uniform random in [MOCK_MIN_MS, MOCK_MAX_MS]
+    uint32_t wait = MOCK_MIN_MS + (esp_random() % (MOCK_MAX_MS - MOCK_MIN_MS + 1));
+    vTaskDelay(pdMS_TO_TICKS(wait));
+
+    if (millis() - lastStat >= 2000)
+    {
+        lastStat = millis();
+        Serial.printf("# mock sent=%lu fail=%lu\n", (unsigned long)sent, (unsigned long)fail);
+    }
+}
+#endif
 
 // ====================== RX ======================
 #elif ROLE == ROLE_RX
 
-// ESP32  Tx Addresses
-// TX node D8:85:AC:60:00:9C
+// ESP32 TX (full CSI). Printed at the TX board's boot: "# TX node ..."
 static const uint8_t ESP_TX_MAC[6] = {0xD8, 0x85, 0xAC, 0x60, 0x00, 0x9C};
 #define TX_LABEL "ESP"
 
-// ---- Laptops / other devices to label (RSSI only). Keep at least one entry. ----
+// ---- Everything below is RSSI only. Laptops AND mock ESP32s go here. ----
+// Labels: no commas.
 struct KnownDev
 {
     const char *label;
     uint8_t mac[6];
 };
 static const KnownDev KNOWN[] = {
-    // e2:c8:65:62:81:0f (Jake)
-    {"LAP1", {0xE2, 0xC8, 0x65, 0x62, 0x81, 0x0f}},
+    // 7A:77:D2:97:16:FB (Jake)
+    {"LAP1", {0x7A, 0x77, 0xD2, 0x97, 0x16, 0xFB}},
     // 30:89:4a:6f:b5:71 (Cindy)
     {"LAP2", {0x30, 0x89, 0x4A, 0x6F, 0xB5, 0x71}},
+    // mock "mobile" ESP32s: paste the MAC each prints at boot ("# MOCK node ...")
+    {"MOCK1", {0xD8, 0x85, 0xAC, 0x60, 0x3B, 0x64}}, // <-- set me
+    {"MOCK2", {0x30, 0xED, 0xA0, 0xE7, 0xF1, 0x88}}, // <-- set me
 };
 #define N_KNOWN (sizeof(KNOWN) / sizeof(KNOWN[0]))
 
@@ -103,22 +161,6 @@ static const KnownDev KNOWN[] = {
 #define CSI_DC_INDEX 28
 #define SC_MAX 26
 #define MAX_SC (2 * SC_MAX)
-
-// struct CsiFrame
-// {
-//     uint32_t ts_ms;
-//     int8_t rssi;
-//     uint8_t ch;
-//     uint16_t n;
-//     uint8_t mag[MAX_SC];
-// };
-// struct PktRec
-// { // RSSI-only record for non-ESP devices
-//     uint32_t ts_ms;
-//     int8_t rssi;
-//     uint8_t ch;
-//     uint8_t dev;
-// };
 
 enum : uint8_t
 {
@@ -140,19 +182,6 @@ static QueueHandle_t evQueue;
 static volatile uint32_t rxCount = 0, dropCount = 0, badLen = 0, csiOther = 0;
 static volatile uint32_t devCount[N_KNOWN] = {0};
 static volatile uint32_t otherCount = 0;
-
-// ESP-NOW receive: only used to learn the ESP32 TX's MAC.
-// static void onRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len)
-// {
-//     if (havePeer || len < (int)sizeof(Pkt))
-//         return;
-//     Pkt p;
-//     memcpy(&p, data, sizeof(p));
-//     if (p.magic != PKT_MAGIC)
-//         return;
-//     memcpy(peerMac, info->src_addr, 6);
-//     havePeer = true;
-// }
 
 static inline uint8_t isqrt32(uint32_t x)
 {
@@ -188,44 +217,62 @@ static void csiCb(void *ctx, wifi_csi_info_t *info)
 {
     if (!info || !info->buf)
         return;
-    if (memcmp(info->mac, ESP_TX_MAC, 6) != 0)
+
+    // 1) ESP32 TX: full CSI
+    if (memcmp(info->mac, ESP_TX_MAC, 6) == 0)
     {
-        csiOther += 1;
-        return; // full CSI for ESP TX only
-    }
-    if (info->len != CSI_EXPECTED_LEN)
-    {
-        badLen += 1;
+        if (info->len != CSI_EXPECTED_LEN)
+        {
+            badLen++;
+            return;
+        }
+
+        static Event e;
+        e.type = EV_CSI;
+        e.ts_ms = millis();
+        e.rssi = info->rx_ctrl.rssi;
+        e.ch = info->rx_ctrl.channel;
+        e.dev = 0;
+
+        uint8_t w = 0;
+        for (int k = -SC_MAX; k <= SC_MAX; k++)
+        {
+            if (k == 0)
+                continue;
+            int idx = k + CSI_DC_INDEX;
+            int32_t im = info->buf[2 * idx];
+            int32_t re = info->buf[2 * idx + 1];
+            e.mag[w++] = isqrt32((uint32_t)(re * re + im * im));
+        }
+        e.n = w;
+
+        rxCount++;
+        if (xQueueSend(evQueue, &e, 0) != pdTRUE)
+            dropCount++;
         return;
     }
 
-    static Event e;
-    e.type = EV_CSI;
-    e.ts_ms = millis();
-    e.rssi = info->rx_ctrl.rssi;
-    e.ch = info->rx_ctrl.channel;
-    e.dev = 0;
-
-    uint8_t w = 0;
-    for (int k = -SC_MAX; k <= SC_MAX; k++)
+    // 2) Known laptop or mock ESP32: RSSI only
+    int idx = classify(info->mac);
+    if (idx >= 0)
     {
-        if (k == 0)
-            continue;
-        int idx = k + CSI_DC_INDEX;
-        int32_t im = info->buf[2 * idx];
-        int32_t re = info->buf[2 * idx + 1];
-        e.mag[w++] = isqrt32((uint32_t)(re * re + im * im));
+        Event p = {};
+        p.type = EV_PKT;
+        p.ts_ms = millis();
+        p.rssi = info->rx_ctrl.rssi;
+        p.ch = info->rx_ctrl.channel;
+        p.dev = (uint8_t)idx;
+        devCount[idx]++;
+        if (xQueueSend(evQueue, &p, 0) != pdTRUE)
+            dropCount++;
+        return;
     }
-    e.n = w;
 
-    rxCount += 1;
-    if (xQueueSend(evQueue, &e, 0) != pdTRUE)
-    {
-        dropCount += 1;
-    }
+    csiOther++; // anything else: count only
 }
 
-// Promiscuous callback: laptops etc. Reads transmitter address from the 802.11 header.
+// The sniffer exists so the radio stays in promiscuous mode (it hears other devices'
+// frames). It only counts unknown data frames.
 static void sniffCb(void *buf, wifi_promiscuous_pkt_type_t type)
 {
     if (type != WIFI_PKT_DATA)
@@ -233,22 +280,8 @@ static void sniffCb(void *buf, wifi_promiscuous_pkt_type_t type)
     const wifi_promiscuous_pkt_t *pkt = (const wifi_promiscuous_pkt_t *)buf;
     if (pkt->rx_ctrl.sig_len < 24)
         return;
-    int idx = classify(pkt->payload + 10); // addr2 = transmitter
-    if (idx < 0)
-    {
+    if (classify(pkt->payload + 10) < 0)
         otherCount++;
-        return;
-    } // unknown device: count only
-
-    Event e = {};
-    e.type = EV_PKT;
-    e.ts_ms = millis();
-    e.rssi = pkt->rx_ctrl.rssi;
-    e.ch = pkt->rx_ctrl.channel;
-    e.dev = (uint8_t)idx;
-    devCount[idx]++;
-    if (xQueueSend(evQueue, &e, 0) != pdTRUE)
-        dropCount++;
 }
 
 static void startCsi()
@@ -274,7 +307,7 @@ static void startCsi()
 static void startSniffer()
 {
     wifi_promiscuous_filter_t flt = {};
-    // MGMT too, so the TX's ESP-NOW (action) frames still reach the CSI path.
+    // MGMT too, so ESP-NOW (action) frames from the TX and mocks still reach the CSI path.
     flt.filter_mask = WIFI_PROMIS_FILTER_MASK_MGMT | WIFI_PROMIS_FILTER_MASK_DATA;
     check(esp_wifi_set_promiscuous_filter(&flt), "promisc_filter");
     check(esp_wifi_set_promiscuous_rx_cb(sniffCb), "promisc_cb");
@@ -308,7 +341,7 @@ void setup()
 {
     Serial.begin(921600);
     delay(1000);
-    evQueue = xQueueCreate(64, sizeof(Event));
+    evQueue = xQueueCreate(128, sizeof(Event));
     wifiCommon();
     Serial.printf("# RX node %s, channel %d, expecting TX %02X:%02X:%02X:%02X:%02X:%02X\n",
                   WiFi.macAddress().c_str(), CSI_CHANNEL,
@@ -318,15 +351,23 @@ void setup()
     startSniffer();
 }
 
-void loop() {
+void loop()
+{
     static uint32_t lastStat = 0;
     static Event e;
 
+    // wait briefly for the first event, then drain whatever backlog has built up
     if (xQueueReceive(evQueue, &e, pdMS_TO_TICKS(5)) == pdTRUE)
-        emit(e);
+    {
+        do
+        {
+            emit(e);
+        } while (xQueueReceive(evQueue, &e, 0) == pdTRUE);
+    }
 
     uint32_t now = millis();
-    if (now - lastStat >= 2000) {
+    if (now - lastStat >= 2000)
+    {
         lastStat = now;
         Serial.printf("# esp=%lu drop=%lu bad_len=%lu", (unsigned long)rxCount,
                       (unsigned long)dropCount, (unsigned long)badLen);
@@ -338,5 +379,5 @@ void loop() {
 }
 
 #else
-#error "ROLE must be 0 (TX) or 1 (RX)"
+#error "ROLE must be 0 (TX), 1 (RX) or 2 (MOCK)"
 #endif
